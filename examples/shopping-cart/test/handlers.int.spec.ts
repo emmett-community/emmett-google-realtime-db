@@ -16,7 +16,7 @@ import admin from 'firebase-admin';
 import type { Database } from 'firebase-admin/database';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { beforeEach, describe, it } from 'node:test';
+import { after, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   type PricedProductItem,
@@ -289,6 +289,11 @@ void describe('ShoppingCart integration (OpenAPI)', () => {
   }
 
   const database: Database = admin.database();
+
+  after(async () => {
+    await firestore.terminate();
+    await admin.app().delete();
+  });
 
   const given = ApiSpecification.for<ShoppingCartEvent>(
     () => {
