@@ -1,18 +1,46 @@
-FROM node:18-alpine
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy library (root) files so the local file dependency ../.. resolves
+COPY package*.json tsconfig*.json tsup.config.ts ./
+COPY src ./src
 
-# Copy built application
-COPY dist ./dist
+# Install root package dependencies and build it
+RUN npm ci
+RUN npm run build
 
-# Copy node_modules (already built locally)
-COPY node_modules ./node_modules
+# Copy shopping-cart example sources
+COPY examples/shopping-cart/package*.json ./examples/shopping-cart/
+COPY examples/shopping-cart/tsconfig.json ./examples/shopping-cart/
+COPY examples/shopping-cart/src ./examples/shopping-cart/src
+COPY examples/shopping-cart/openapi.yml ./examples/shopping-cart/openapi.yml
+COPY examples/shopping-cart/.firebaserc ./examples/shopping-cart/.firebaserc
+COPY examples/shopping-cart/firebase.json ./examples/shopping-cart/firebase.json
+COPY examples/shopping-cart/.http ./examples/shopping-cart/.http
 
-# Expose port
+# Install example dependencies (resolves file:../.. against /app)
+RUN cd examples/shopping-cart && npm ci
+
+FROM node:20-alpine AS runner
+
+WORKDIR /app/examples/shopping-cart
+ENV NODE_ENV=production
+
+# Provide the locally linked library target so the symlink installed from file:../.. resolves
+COPY --from=builder /app/package*.json /app/
+COPY --from=builder /app/dist /app/dist
+
+# Copy runtime artifacts
+COPY --from=builder /app/examples/shopping-cart/node_modules ./node_modules
+COPY --from=builder /app/examples/shopping-cart/src ./src
+COPY --from=builder /app/examples/shopping-cart/package*.json ./
+COPY --from=builder /app/examples/shopping-cart/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/examples/shopping-cart/openapi.yml ./openapi.yml
+COPY --from=builder /app/examples/shopping-cart/.firebaserc ./.firebaserc
+COPY --from=builder /app/examples/shopping-cart/firebase.json ./firebase.json
+COPY --from=builder /app/examples/shopping-cart/.http ./.http
+
 EXPOSE 3000
 
-# Start application
-CMD ["node", "dist/index.js"]
+CMD ["npm", "run", "start"]

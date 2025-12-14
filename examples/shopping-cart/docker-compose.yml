@@ -23,8 +23,8 @@ services:
 
   app:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: examples/shopping-cart/Dockerfile
     ports:
       - "3000:3000"
     environment:

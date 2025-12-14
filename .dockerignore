@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+database-debug.log
+firebase-debug.log
+.git
+.gitignore
+.idea
+.vscode
+coverage
+*.log
+tmp
+*.tmp
+*.tsbuildinfo
+dist-test
+**/.DS_Store
