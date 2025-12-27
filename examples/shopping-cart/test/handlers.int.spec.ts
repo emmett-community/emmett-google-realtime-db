@@ -1,5 +1,5 @@
 import { getInMemoryMessageBus } from '@event-driven-io/emmett';
-import { Firestore } from '@google-cloud/firestore';
+import type { Firestore } from '@google-cloud/firestore';
 import { getFirestoreEventStore } from '@emmett-community/emmett-google-firestore';
 import { wireRealtimeDBProjections } from '@emmett-community/emmett-google-realtime-db';
 import {
@@ -12,11 +12,10 @@ import {
   getApplication,
   type ImportedHandlerModules,
 } from '@emmett-community/emmett-expressjs-with-openapi';
-import admin from 'firebase-admin';
 import type { Database } from 'firebase-admin/database';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { after, beforeEach, describe, it } from 'node:test';
+import { beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   type PricedProductItem,
@@ -25,6 +24,8 @@ import {
 import { shoppingCartDetailsProjection } from '../src/shoppingCarts/getDetails';
 import { shoppingCartShortInfoProjection } from '../src/shoppingCarts/getShortInfo';
 import assert from 'node:assert';
+import { InMemoryFirestore } from './support/inMemoryFirestore';
+import { InMemoryRealtimeDb } from './support/inMemoryRealtimeDb';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,8 @@ const getUnitPrice = (_productId: string) => Promise.resolve(100);
 void describe('ShoppingCart integration (OpenAPI)', () => {
   let clientId: string;
   let shoppingCartId: string;
+  let firestore: InMemoryFirestore;
+  let database: Database;
   const messageBus = getInMemoryMessageBus();
   const oldTime = new Date();
   const now = new Date();
@@ -42,6 +45,8 @@ void describe('ShoppingCart integration (OpenAPI)', () => {
   beforeEach(() => {
     clientId = randomUUID();
     shoppingCartId = `shopping_cart:${clientId}:current`;
+    firestore = new InMemoryFirestore();
+    database = new InMemoryRealtimeDb() as unknown as Database;
   });
 
   void describe('When empty', () => {
@@ -271,33 +276,11 @@ void describe('ShoppingCart integration (OpenAPI)', () => {
     });
   });
 
-  const firestore = new Firestore({
-    projectId: 'demo-project',
-    host: process.env.FIRESTORE_EMULATOR_HOST || 'localhost:8080',
-    ssl: false,
-    customHeaders: {
-      Authorization: 'Bearer owner',
-    },
-  });
-
-  // Initialize Firebase Admin SDK for Realtime Database
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      projectId: 'demo-project',
-      databaseURL: `http://${process.env.FIREBASE_DATABASE_EMULATOR_HOST || 'localhost:9000'}?ns=demo-project`,
-    });
-  }
-
-  const database: Database = admin.database();
-
-  after(async () => {
-    await firestore.terminate();
-    await admin.app().delete();
-  });
-
   const given = ApiSpecification.for<ShoppingCartEvent>(
     () => {
-      const baseEventStore = getFirestoreEventStore(firestore);
+      const baseEventStore = getFirestoreEventStore(
+        firestore as unknown as Firestore,
+      );
       return wireRealtimeDBProjections({
         eventStore: baseEventStore,
         database,
@@ -310,7 +293,7 @@ void describe('ShoppingCart integration (OpenAPI)', () => {
     (eventStore) => {
       return getApplication({
         openApiValidator: createOpenApiValidatorOptions(
-          path.join(__dirname, '../openapi.yml'),
+          path.join(__dirname, '../src/openapi.yml'),
           {
             validateRequests: true,
             validateSecurity: true,

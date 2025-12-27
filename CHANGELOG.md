@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-12-27
+
+### Added
+
+- In-memory Realtime DB test helper for integration tests
+- Testcontainers-based E2E coverage for Realtime DB projections
+- Firebase emulator configs under `test/support/firebase`
+- GitHub Actions workflows for build/test and publish
+
+### Changed
+
+- Integration tests now use in-memory Realtime DB
+- Example E2E tests run against Firebase emulators via Testcontainers
+- Example docker-compose uses `myfstartup/firebase-emulator-suite:15` image
+- Example OpenAPI spec moved under `examples/shopping-cart/src`
+- Example Firebase configs moved under `examples/shopping-cart/test/support/firebase`
+- README and example docs aligned with new test strategy
+
+### Removed
+
+- `examples/shopping-cart/Dockerfile.firebase`
+- `examples/shopping-cart/.env.example`
+
 ## [0.1.0] - 2025-12-14
 
 ### Added

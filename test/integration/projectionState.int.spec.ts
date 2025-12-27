@@ -1,11 +1,10 @@
-import * as admin from 'firebase-admin';
 import type { Database } from 'firebase-admin/database';
 import {
   testProjection,
   getProjectionState,
   clearProjection,
   clearAllProjections,
-} from '../../src/projections/realtimeDBInlineProjectionSpec';
+} from '../../src/testing';
 import { handleInlineProjections } from '../../src/projections/realtimeDBInlineProjection';
 import {
   cartProjection,
@@ -20,28 +19,13 @@ import {
   orderConfirmed,
   orderCancelled,
 } from '../fixtures/events';
+import { InMemoryRealtimeDb } from '../support/inMemoryRealtimeDb';
 
 describe('Projection State Integration', () => {
   let database: Database;
-  let app: admin.app.App;
-
-  beforeAll(() => {
-    app = admin.initializeApp(
-      {
-        projectId: process.env.FIRESTORE_PROJECT_ID || 'test-project',
-        databaseURL: `http://${process.env.FIREBASE_DATABASE_EMULATOR_HOST || 'localhost:9000'}?ns=test-project`,
-      },
-      `test-projection-state-${Date.now()}`,
-    );
-    database = admin.database(app);
-  });
-
-  afterAll(async () => {
-    await app.delete();
-  });
 
   beforeEach(async () => {
-    await database.ref().remove();
+    database = new InMemoryRealtimeDb() as unknown as Database;
   });
 
   describe('Testing Utilities Validation', () => {

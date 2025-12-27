@@ -1,1 +1,1 @@
-export * from '../projections/realtimeDBInlineProjectionSpec';
+export * from './realtimeDBInlineProjectionSpec';

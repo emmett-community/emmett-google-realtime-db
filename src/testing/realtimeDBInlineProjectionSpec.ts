@@ -3,7 +3,7 @@ import type { Database } from 'firebase-admin/database';
 import type {
   RealtimeDBInlineProjectionDefinition,
   RealtimeDBReadEventMetadata,
-} from './types';
+} from '../projections/types';
 
 export type ProjectionTestContext = {
   database: Database;
