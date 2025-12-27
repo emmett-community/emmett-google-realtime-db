@@ -16,8 +16,8 @@ const projectId = 'demo-project';
 let emulator: import('testcontainers').StartedTestContainer | null = null;
 let emulatorHost = '';
 let databasePort = 0;
-let database: Database;
-let app: admin.app.App;
+let database: Database | null = null;
+let app: admin.app.App | null = null;
 
 const startEmulator = async () => {
   const container = await new GenericContainer(
@@ -65,14 +65,18 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await app.delete();
+  if (app) {
+    await app.delete();
+  }
   if (emulator) {
     await emulator.stop();
   }
 });
 
 beforeEach(async () => {
-  await database.ref().remove();
+  if (database) {
+    await database.ref().remove();
+  }
 });
 
 describe('Realtime DB projections e2e', () => {
@@ -84,11 +88,11 @@ describe('Realtime DB projections e2e', () => {
       events: events as any,
       projections: [counterProjection] as any,
       streamId,
-      database,
+      database: database as Database,
     });
 
     const state = await getProjectionState<PersistedCounterState>(
-      database,
+      database as Database,
       'test-counter',
       streamId,
     );
@@ -110,7 +114,7 @@ describe('Realtime DB projections e2e', () => {
 
     const wired = wireRealtimeDBProjections({
       eventStore: mockEventStore,
-      database,
+      database: database as Database,
       projections: [counterProjection],
     });
 
@@ -122,7 +126,7 @@ describe('Realtime DB projections e2e', () => {
     ] as any);
 
     const state = await getProjectionState<PersistedCounterState>(
-      database,
+      database as Database,
       'test-counter',
       'stream-wired',
     );
