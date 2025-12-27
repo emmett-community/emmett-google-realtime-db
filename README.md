@@ -1,18 +1,17 @@
 # @emmett-community/emmett-google-realtime-db
 
-Google Realtime Database inline projections for [Emmett](https://event-driven-io.github.io/emmett/) - Event Sourcing development made simple.
+Google Realtime Database inline projections for [Emmett](https://event-driven-io.github.io/emmett/), the Node.js event sourcing framework.
 
-## Overview
+[![npm version](https://img.shields.io/npm/v/@emmett-community/emmett-google-realtime-db.svg)](https://www.npmjs.com/package/@emmett-community/emmett-google-realtime-db) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This package provides **inline projection** support for Emmett using Google Firebase Realtime Database. It enables you to create real-time read models that are updated synchronously when events are appended to your event store.
+## Features
 
-### Key Features
-
-- **Inline Projections**: Synchronously updated projections stored in Realtime Database
-- **EventStore-Agnostic**: Works with any Emmett EventStore (Firestore, PostgreSQL, MongoDB, etc.)
-- **Type-Safe**: Full TypeScript support
-- **Real-time**: Leverage Firebase Realtime Database for real-time read models
-- **Simple Integration**: Wire projections to your existing event store with one function call
+- ✅ **Inline Projections** - Update projections in Realtime Database after each append
+- ✅ **EventStore-Agnostic** - Works with any Emmett EventStore (Firestore, PostgreSQL, MongoDB, etc.)
+- ✅ **Type-Safe** - Full TypeScript support with projection metadata
+- ✅ **Real-time Read Models** - Queryable views stored in Firebase RTDB
+- ✅ **Testing Utilities** - Helpers for projection validation
+- ✅ **Simple Integration** - Wire projections with a single function call
 
 ## Installation
 
@@ -27,10 +26,14 @@ npm install @emmett-community/emmett-google-realtime-db firebase-admin
 
 ## Quick Start
 
-### 1. Define a Projection
-
 ```typescript
-import { realtimeDBInlineProjection } from '@emmett-community/emmett-google-realtime-db';
+import { realtimeDBInlineProjection, wireRealtimeDBProjections } from '@emmett-community/emmett-google-realtime-db';
+import { getFirestoreEventStore } from '@emmett-community/emmett-google-firestore';
+import * as admin from 'firebase-admin';
+
+admin.initializeApp({ /* config */ });
+const database = admin.database();
+const firestore = admin.firestore();
 
 type ShoppingCartSummary = {
   totalAmount: number;
@@ -61,62 +64,31 @@ const shoppingCartSummaryProjection = realtimeDBInlineProjection<
     }
   },
 });
-```
 
-### 2. Wire Projections to Event Store
-
-```typescript
-import { wireRealtimeDBProjections } from '@emmett-community/emmett-google-realtime-db';
-import { getFirestoreEventStore } from '@emmett-community/emmett-google-firestore';
-import * as admin from 'firebase-admin';
-
-// Initialize Firebase
-admin.initializeApp({ /* config */ });
-const database = admin.database();
-const firestore = admin.firestore();
-
-// Create event store
 const baseEventStore = getFirestoreEventStore(firestore);
-
-// Wire projections
 const eventStore = wireRealtimeDBProjections({
   eventStore: baseEventStore,
   database,
   projections: [shoppingCartSummaryProjection],
 });
 
-// Now when you append events, projections are automatically updated!
 await eventStore.appendToStream(streamId, events);
 ```
 
-### 3. Query Projections
-
 ```typescript
-const getSummary = async (
-  database: Database,
-  cartId: string
-): Promise<ShoppingCartSummary | null> => {
-  const snapshot = await database
-    .ref(`projections/shoppingCartSummary/${cartId}`)
-    .once('value');
-  return snapshot.val() ?? null;
-};
-
-// Use in your API
-const summary = await getSummary(database, 'cart-123');
+const summary = await database
+  .ref(`projections/shoppingCartSummary/${cartId}`)
+  .once('value')
+  .then((snapshot) => snapshot.val() ?? null);
 ```
 
 ## How It Works
 
 ### Inline Projections
 
-Inline projections are **updated synchronously** when events are appended to the event store. This guarantees:
+Inline projections are **updated immediately after** `appendToStream` completes. Updates run sequentially for matching projections, which makes them predictable, but they are **not transactional** with the event write. Keep projection handlers idempotent to handle retries safely.
 
-- **Strong Consistency**: Projections are always up-to-date with the event stream
-- **Atomic Updates**: Projection updates happen in the same operation as event append
-- **Real-time**: Perfect for critical read models that need immediate consistency
-
-### Data Structure
+### Realtime Database Structure
 
 Projections are stored in Realtime Database at:
 
@@ -221,7 +193,7 @@ cd examples/shopping-cart
 npm install
 
 # Start Firebase emulators
-docker-compose up firebase
+docker-compose up
 
 # Start the application
 npm start
@@ -267,55 +239,46 @@ await clearAllProjections(database);
 
 ### Running Package Tests
 
-The package has comprehensive test coverage with 123 tests (unit + integration).
-
-**Prerequisites:**
-
-- Firebase Realtime Database emulator running on port 9000
-
-**Run all tests:**
-
 ```bash
-npm test
-```
-
-**Run only unit tests:**
-
-```bash
+# Unit tests
 npm run test:unit
-```
 
-**Run only integration tests:**
+# Integration tests (in-memory Realtime DB)
+npm run test:int
 
-```bash
-npm run test:integration
-```
+# E2E tests (Firebase emulators via Testcontainers, requires Docker)
+npm run test:e2e
 
-**Generate coverage report:**
+# All tests
+npm test
 
-```bash
+# Coverage
 npm run test:coverage
 ```
 
-**Start Firebase emulator for tests:**
+Test files live in `test/` and are selected by filename suffix:
+
+- `*.unit.spec.ts` (unit tests, pure logic)
+- `*.int.spec.ts` (integration tests, in-memory Realtime DB)
+- `*.e2e.spec.ts` (E2E tests, Firebase emulators via Testcontainers)
+
+Support fixtures live under `test/support` (including Firebase emulator configs in `test/support/firebase`).
+
+### Using Firebase Emulator
+
+For local development and manual testing:
 
 ```bash
-# Option 1: Using Firebase CLI
-firebase emulators:start --only database --project test-project
-
-# Option 2: Using Docker
-docker run -p 9000:9000 \
-  --env "FIREBASE_DATABASE_EMULATOR_HOST=0.0.0.0:9000" \
-  firebase-tools:latest \
-  firebase emulators:start --only database --project test-project
+firebase emulators:start --only database --project demo-project
 ```
 
-**Test Coverage:**
+Set environment variables:
 
-- **123 total tests** (9 test suites)
-- Unit tests: 55 tests covering core logic
-- Integration tests: 68 tests with Firebase emulator
-- Coverage threshold: 80% on all metrics (branches, functions, lines, statements)
+```bash
+export FIREBASE_DATABASE_EMULATOR_HOST=localhost:9000
+```
+
+E2E tests start the emulators automatically via Testcontainers.
 
 ## Architecture
 
@@ -340,6 +303,7 @@ While this package is EventStore-agnostic, the most common pattern is:
 
 This combination provides:
 - Strong consistency for events (Firestore ACID transactions)
+- Projection updates immediately after appends
 - Real-time read models (Realtime Database synchronization)
 - Optimal cost/performance balance
 
@@ -373,15 +337,15 @@ For local development and testing:
 firebase emulators:start
 
 # Or with Docker
-docker-compose up firebase
+docker-compose up
 ```
 
 ## Comparison: Inline vs Async Projections
 
 | Feature | Inline Projections (this package) | Async Projections |
 |---------|-----------------------------------|-------------------|
-| Update Timing | Synchronous with event append | Asynchronous (background) |
-| Consistency | Strong (atomic with events) | Eventual |
+| Update Timing | Immediately after append | Asynchronous (background) |
+| Consistency | Consistent after append (not transactional) | Eventual |
 | Storage | Realtime Database | Separate collections/tables |
 | Use Cases | Critical read models, current state | Analytics, reports, denormalized views |
 | Complexity | Simple (no background workers) | Complex (requires consumers/subscriptions) |

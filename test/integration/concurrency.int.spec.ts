@@ -1,8 +1,7 @@
-import * as admin from 'firebase-admin';
 import type { Database } from 'firebase-admin/database';
 import type { EventStore } from '@event-driven-io/emmett';
 import { wireRealtimeDBProjections } from '../../src/wireRealtimeDBProjections';
-import { getProjectionState } from '../../src/projections/realtimeDBInlineProjectionSpec';
+import { getProjectionState } from '../../src/testing';
 import {
   cartProjection,
   counterProjection,
@@ -10,29 +9,14 @@ import {
   type PersistedCounterState,
 } from '../fixtures/projections';
 import { itemAdded, itemRemoved } from '../fixtures/events';
+import { InMemoryRealtimeDb } from '../support/inMemoryRealtimeDb';
 
 describe('High Volume Operations Integration', () => {
   let database: Database;
-  let app: admin.app.App;
   let mockEventStore: jest.Mocked<EventStore>;
 
-  beforeAll(() => {
-    app = admin.initializeApp(
-      {
-        projectId: process.env.FIRESTORE_PROJECT_ID || 'test-project',
-        databaseURL: `http://${process.env.FIREBASE_DATABASE_EMULATOR_HOST || 'localhost:9000'}?ns=test-project`,
-      },
-      `test-concurrency-${Date.now()}`,
-    );
-    database = admin.database(app);
-  });
-
-  afterAll(async () => {
-    await app.delete();
-  });
-
   beforeEach(async () => {
-    await database.ref().remove();
+    database = new InMemoryRealtimeDb() as unknown as Database;
 
     mockEventStore = {
       appendToStream: jest.fn().mockImplementation(async () => ({

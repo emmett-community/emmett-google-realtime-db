@@ -106,7 +106,7 @@ npm install
 
 ### Running with Docker (Recommended)
 
-Start everything (emulators + application):
+Start everything (emulators + application). The Firebase emulators run from a Docker Hub image.
 
 ```bash
 # Start all services
@@ -174,8 +174,8 @@ npm test
 
 # Run specific test suites
 npm run test:unit        # Business logic tests
-npm run test:int         # Integration tests (with emulators)
-npm run test:e2e         # End-to-end tests
+npm run test:int         # Integration tests (in-memory Firestore + Realtime DB)
+npm run test:e2e         # End-to-end tests (emulators via Testcontainers, requires Docker)
 
 # Watch mode
 npm run test:watch
@@ -265,6 +265,7 @@ curl http://localhost:3000/clients/test-client/shopping-carts/current/summary \
 examples/shopping-cart/
 ├── src/
 │   ├── index.ts                           # App initialization + wiring
+│   ├── openapi.yml                         # OpenAPI spec with GET endpoints
 │   ├── handlers/
 │   │   └── shoppingCarts.ts               # HTTP handlers (POST/DELETE/GET)
 │   └── shoppingCarts/
@@ -277,10 +278,12 @@ examples/shopping-cart/
 ├── test/
 │   ├── businessLogic.unit.spec.ts         # Business logic tests
 │   ├── handlers.int.spec.ts               # Integration tests
-│   └── handlers.e2e.spec.ts               # E2E tests
+│   ├── handlers.e2e.spec.ts               # E2E tests
+│   └── support/
+│       └── firebase/
+│           ├── firebase.json              # Emulator config (Firestore + RTDB)
+│           └── .firebaserc                # Emulator project config
 ├── docker-compose.yml                      # Firebase emulators
-├── firebase.json                           # Emulator config (Firestore + RTDB)
-├── openapi.yml                             # OpenAPI spec with GET endpoints
 └── .http                                   # Manual test requests
 ```
 
@@ -350,7 +353,7 @@ export const getDetailsById = async (
 
 The `docker-compose.yml` runs:
 
-1. **Firebase Emulator Container**: Firestore + Realtime DB + UI
+1. **Firebase Emulator Container**: Firestore + Realtime DB + UI (Docker Hub image)
 2. **Application Container**: Express.js API
 
 ```bash
@@ -375,7 +378,7 @@ In production, replace with proper JWT validation.
 
 ## Environment Variables
 
-Create `.env` from `.env.example`:
+Create a `.env` file if you want to override defaults when running locally:
 
 ```bash
 # Firestore
@@ -415,7 +418,7 @@ docker-compose restart firebase
 
 ### Port Already in Use
 
-Change ports in `.env` and `docker-compose.yml` if 3000, 4000, 8080, or 9000 are already in use.
+Change ports in `docker-compose.yml` if 3000, 4000, 8080, or 9000 are already in use.
 
 ### Projection Not Updating
 

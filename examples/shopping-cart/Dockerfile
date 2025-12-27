@@ -14,9 +14,6 @@ RUN npm run build
 COPY examples/shopping-cart/package*.json ./examples/shopping-cart/
 COPY examples/shopping-cart/tsconfig.json ./examples/shopping-cart/
 COPY examples/shopping-cart/src ./examples/shopping-cart/src
-COPY examples/shopping-cart/openapi.yml ./examples/shopping-cart/openapi.yml
-COPY examples/shopping-cart/.firebaserc ./examples/shopping-cart/.firebaserc
-COPY examples/shopping-cart/firebase.json ./examples/shopping-cart/firebase.json
 COPY examples/shopping-cart/.http ./examples/shopping-cart/.http
 
 # Install example dependencies (resolves file:../.. against /app)
@@ -36,9 +33,6 @@ COPY --from=builder /app/examples/shopping-cart/node_modules ./node_modules
 COPY --from=builder /app/examples/shopping-cart/src ./src
 COPY --from=builder /app/examples/shopping-cart/package*.json ./
 COPY --from=builder /app/examples/shopping-cart/tsconfig.json ./tsconfig.json
-COPY --from=builder /app/examples/shopping-cart/openapi.yml ./openapi.yml
-COPY --from=builder /app/examples/shopping-cart/.firebaserc ./.firebaserc
-COPY --from=builder /app/examples/shopping-cart/firebase.json ./firebase.json
 COPY --from=builder /app/examples/shopping-cart/.http ./.http
 
 EXPOSE 3000
