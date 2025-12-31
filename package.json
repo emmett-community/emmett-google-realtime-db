@@ -1,6 +1,6 @@
 {
   "name": "@emmett-community/emmett-google-realtime-db",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Google Realtime Database inline projections for Emmett",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -69,6 +69,9 @@
     "url": "https://github.com/emmett-community/emmett-google-realtime-db/issues"
   },
   "homepage": "https://github.com/emmett-community/emmett-google-realtime-db#readme",
+  "dependencies": {
+    "@opentelemetry/api": "^1.0.0"
+  },
   "peerDependencies": {
     "@event-driven-io/emmett": "^0.39.0",
     "firebase-admin": "^12.0.0"

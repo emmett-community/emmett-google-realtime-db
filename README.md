@@ -280,6 +280,49 @@ export FIREBASE_DATABASE_EMULATOR_HOST=localhost:9000
 
 E2E tests start the emulators automatically via Testcontainers.
 
+## Observability
+
+### Logging
+
+Logging is optional and opt-in. To enable logging, provide a logger instance:
+
+```typescript
+import pino from 'pino';
+
+const eventStore = wireRealtimeDBProjections({
+  eventStore: baseEventStore,
+  database,
+  projections: [shoppingCartSummaryProjection],
+  observability: {
+    logger: pino(),
+  },
+});
+```
+
+The logger interface is compatible with Pino, Winston, and similar libraries:
+
+```typescript
+interface Logger {
+  debug?(msg: string, data?: unknown): void;
+  info?(msg: string, data?: unknown): void;
+  warn?(msg: string, data?: unknown): void;
+  error?(msg: string, err?: unknown): void;
+}
+```
+
+Without a logger, the library operates silently.
+
+### Tracing
+
+This package emits OpenTelemetry spans at I/O boundaries. Tracing is passive:
+
+- Spans are created using `@opentelemetry/api`
+- If your application initializes OpenTelemetry, spans are captured
+- If not initialized, spans are no-ops with zero overhead
+- No configuration flags required
+
+Span names follow the `emmett.realtime_db.*` pattern.
+
 ## Architecture
 
 ### EventStore-Agnostic Design
