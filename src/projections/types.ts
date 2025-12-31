@@ -7,6 +7,7 @@ import type {
   ReadEventMetadataWithoutGlobalPosition,
 } from '@event-driven-io/emmett';
 import type { Database, Reference } from 'firebase-admin/database';
+import type { ObservabilityOptions } from '../observability';
 
 export const RealtimeDBDefaultInlineProjectionName = '_default';
 
@@ -61,6 +62,7 @@ export type InlineProjectionHandlerOptions<
   >[];
   streamId: string;
   database: Database;
+  observability?: ObservabilityOptions;
 };
 
 export type RealtimeDBWithNotNullDocumentEvolve<
