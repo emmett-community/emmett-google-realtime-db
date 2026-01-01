@@ -55,10 +55,15 @@ describe('handleInlineProjections - Observability', () => {
     });
   });
 
-  describe('with logger', () => {
-    it('should call logger.debug on projection handling entry', async () => {
+  describe('with logger - canonical (context, message) format', () => {
+    it('should call logger.debug with (context, message) on projection handling entry', async () => {
       const debugFn = jest.fn();
-      const logger: Logger = { debug: debugFn };
+      const logger: Logger = {
+        debug: debugFn,
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
 
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
@@ -70,19 +75,25 @@ describe('handleInlineProjections - Observability', () => {
         observability: { logger },
       });
 
+      // Canonical format: (context, message)
       expect(debugFn).toHaveBeenCalledWith(
-        'Handling inline projections',
         expect.objectContaining({
           streamId: 'stream-1',
           eventCount: 1,
           projectionNames: expect.any(Array),
         }),
+        'Handling inline projections',
       );
     });
 
-    it('should log filtered projections count', async () => {
+    it('should log filtered projections count with (context, message) format', async () => {
       const debugFn = jest.fn();
-      const logger: Logger = { debug: debugFn };
+      const logger: Logger = {
+        debug: debugFn,
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
 
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
@@ -94,17 +105,23 @@ describe('handleInlineProjections - Observability', () => {
         observability: { logger },
       });
 
+      // Canonical format: (context, message)
       expect(debugFn).toHaveBeenCalledWith(
-        'Filtered projections',
         expect.objectContaining({
           matchingProjectionCount: 1,
         }),
+        'Filtered projections',
       );
     });
 
-    it('should log when document is read', async () => {
+    it('should log when document is read with (context, message) format', async () => {
       const debugFn = jest.fn();
-      const logger: Logger = { debug: debugFn };
+      const logger: Logger = {
+        debug: debugFn,
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
 
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
@@ -116,18 +133,24 @@ describe('handleInlineProjections - Observability', () => {
         observability: { logger },
       });
 
+      // Canonical format: (context, message)
       expect(debugFn).toHaveBeenCalledWith(
-        'Read document',
         expect.objectContaining({
           projectionName: expect.any(String),
           documentFound: false,
         }),
+        'Read document',
       );
     });
 
-    it('should log when document is found', async () => {
+    it('should log when document is found with (context, message) format', async () => {
       const debugFn = jest.fn();
-      const logger: Logger = { debug: debugFn };
+      const logger: Logger = {
+        debug: debugFn,
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
 
       mockSnapshot.val.mockReturnValue({ count: 5 });
 
@@ -141,17 +164,23 @@ describe('handleInlineProjections - Observability', () => {
         observability: { logger },
       });
 
+      // Canonical format: (context, message)
       expect(debugFn).toHaveBeenCalledWith(
-        'Read document',
         expect.objectContaining({
           documentFound: true,
         }),
+        'Read document',
       );
     });
 
-    it('should log completion', async () => {
+    it('should log completion with (context, message) format', async () => {
       const debugFn = jest.fn();
-      const logger: Logger = { debug: debugFn };
+      const logger: Logger = {
+        debug: debugFn,
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
 
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
@@ -163,18 +192,24 @@ describe('handleInlineProjections - Observability', () => {
         observability: { logger },
       });
 
+      // Canonical format: (context, message)
       expect(debugFn).toHaveBeenCalledWith(
-        'Projections handling completed',
         expect.objectContaining({
           streamId: 'stream-1',
           projectionsProcessed: 1,
         }),
+        'Projections handling completed',
       );
     });
 
-    it('should log error on failure', async () => {
+    it('should log error with (context, message) format on failure', async () => {
       const errorFn = jest.fn();
-      const logger: Logger = { error: errorFn };
+      const logger: Logger = {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: errorFn,
+      };
       const testError = new Error('Database error');
 
       mockProjectionRef.once.mockRejectedValue(testError);
@@ -191,15 +226,21 @@ describe('handleInlineProjections - Observability', () => {
         }),
       ).rejects.toThrow('Database error');
 
+      // Canonical format: ({ err: Error }, message)
       expect(errorFn).toHaveBeenCalledWith(
+        { err: testError },
         expect.stringContaining('Failed to handle'),
-        testError,
       );
     });
 
-    it('should work with partial logger', async () => {
+    it('should work with full logger implementation', async () => {
       const debugFn = jest.fn();
-      const logger: Logger = { debug: debugFn };
+      const logger: Logger = {
+        debug: debugFn,
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
 
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 

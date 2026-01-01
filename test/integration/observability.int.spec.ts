@@ -71,10 +71,15 @@ describe('Observability - Integration Tests', () => {
     });
   });
 
-  describe('With logger configured', () => {
-    it('should emit info log on initialization', () => {
+  describe('With logger configured - canonical (context, message) format', () => {
+    it('should emit info log with (context, message) on initialization', () => {
       const infoFn = jest.fn();
-      const logger: Logger = { info: infoFn };
+      const logger: Logger = {
+        debug: jest.fn(),
+        info: infoFn,
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
 
       wireRealtimeDBProjections({
         eventStore: mockEventStore,
@@ -83,15 +88,18 @@ describe('Observability - Integration Tests', () => {
         observability: { logger },
       });
 
-      expect(infoFn).toHaveBeenCalledWith(
-        'Wiring RealtimeDB projections',
-        undefined,
-      );
+      // Canonical format: (context, message)
+      expect(infoFn).toHaveBeenCalledWith({}, 'Wiring RealtimeDB projections');
     });
 
-    it('should emit debug logs during append operation', async () => {
+    it('should emit debug logs with (context, message) during append operation', async () => {
       const debugFn = jest.fn();
-      const logger: Logger = { debug: debugFn };
+      const logger: Logger = {
+        debug: debugFn,
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
 
       const wired = wireRealtimeDBProjections({
         eventStore: mockEventStore,
@@ -106,12 +114,16 @@ describe('Observability - Integration Tests', () => {
       // Should have logged multiple debug messages
       expect(debugFn.mock.calls.length).toBeGreaterThan(0);
 
-      // Verify specific log messages
-      const messages = debugFn.mock.calls.map((call) => call[0]);
-      expect(messages).toContain('Appending to stream');
-      expect(messages).toContain('Append completed');
-      expect(messages).toContain('Handling inline projections');
-      expect(messages).toContain('Read document');
+      // Verify canonical format: (context, message)
+      // First arg is context object, second is message string
+      const appendingCall = debugFn.mock.calls.find(
+        (call) => call[1] === 'Appending to stream',
+      );
+      expect(appendingCall).toBeDefined();
+      expect(typeof appendingCall![0]).toBe('object');
+      expect(appendingCall![0]).toEqual(
+        expect.objectContaining({ streamName: 'stream-1' }),
+      );
     });
 
     it('should work with full logger implementation', async () => {
@@ -144,30 +156,14 @@ describe('Observability - Integration Tests', () => {
       expect(errorFn).not.toHaveBeenCalled();
     });
 
-    it('should work with partial logger implementation', async () => {
-      const infoFn = jest.fn();
-      const partialLogger: Logger = { info: infoFn };
-
-      const wired = wireRealtimeDBProjections({
-        eventStore: mockEventStore,
-        database,
-        projections: [counterProjection],
-        observability: { logger: partialLogger },
-      });
-
-      const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
-
-      // Should not throw even though debug is called internally
-      await expect(
-        wired.appendToStream('stream-1', events as any, {}),
-      ).resolves.toBeDefined();
-
-      expect(infoFn).toHaveBeenCalled();
-    });
-
-    it('should emit error log on failure', async () => {
+    it('should emit error log with (context, message) on failure', async () => {
       const errorFn = jest.fn();
-      const logger: Logger = { error: errorFn };
+      const logger: Logger = {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: errorFn,
+      };
       const testError = new Error('Append failed');
 
       mockEventStore.appendToStream = jest.fn().mockRejectedValue(testError);
@@ -185,9 +181,10 @@ describe('Observability - Integration Tests', () => {
         wired.appendToStream('stream-1', events as any, {}),
       ).rejects.toThrow('Append failed');
 
+      // Canonical format: ({ err: Error }, message)
       expect(errorFn).toHaveBeenCalledWith(
+        { err: testError },
         'Failed to append to stream',
-        testError,
       );
     });
   });
@@ -213,7 +210,12 @@ describe('Observability - Integration Tests', () => {
       });
 
       // With logger
-      const logger: Logger = { debug: jest.fn(), info: jest.fn() };
+      const logger: Logger = {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
       const wiredWith = wireRealtimeDBProjections({
         eventStore: mockEventStore,
         database,

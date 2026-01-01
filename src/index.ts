@@ -1,3 +1,3 @@
 export * from './projections';
 export * from './wireRealtimeDBProjections';
-export * from './observability';
+export type { Logger, ObservabilityOptions } from './observability';
