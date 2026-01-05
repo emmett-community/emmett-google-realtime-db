@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-01-05
+
+### Changed
+
+- Updated `firebase-admin` peer dependency from `^12.0.0` to `^13.0.0`
+- Minimum Node.js version remains `>=18.0.0` (already required)
+
+### Notes
+
+- firebase-admin v13 dropped support for Node.js 14 and 16
+- No code changes required - only Realtime Database APIs are used, which remain compatible
+
 ## [0.4.0] - 2026-01-01
 
 ### Changed
