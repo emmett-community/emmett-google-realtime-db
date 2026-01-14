@@ -15,6 +15,87 @@ export { RealtimeDBDefaultInlineProjectionName } from './types';
 // Tracer name MUST match package.json name exactly
 const tracer = trace.getTracer('@emmett-community/emmett-google-realtime-db');
 
+const READ_TIMEOUTS_MS = [5000, 8000, 12000];
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+const TIMEOUT_ERROR_MESSAGE = 'Realtime DB read timed out.';
+
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(TIMEOUT_ERROR_MESSAGE));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+};
+
+const isTimeoutError = (error: unknown): boolean => {
+  return error instanceof Error && error.message === TIMEOUT_ERROR_MESSAGE;
+};
+
+const resetRealtimeDbConnection = async (
+  database: import('firebase-admin/database').Database,
+  logger: Logger | undefined,
+  projectionName: string,
+  streamId: string,
+): Promise<void> => {
+  try {
+    safeLog.warn(logger, 'Resetting Realtime DB connection after timeout', {
+      projectionName,
+      streamId,
+    });
+    database.goOffline();
+    database.goOnline();
+  } catch (error) {
+    safeLog.error(logger, 'Failed to reset Realtime DB connection', error);
+  }
+};
+
+const readSnapshotWithRetry = async (
+  projectionRef: import('firebase-admin/database').Reference,
+  database: import('firebase-admin/database').Database,
+  logger: Logger | undefined,
+  projectionName: string,
+  streamId: string,
+): Promise<import('firebase-admin/database').DataSnapshot> => {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < READ_TIMEOUTS_MS.length; attempt += 1) {
+    try {
+      return await withTimeout(projectionRef.once('value'), READ_TIMEOUTS_MS[attempt]!);
+    } catch (error) {
+      lastError = error;
+      safeLog.warn(logger, 'Realtime DB read failed, retrying', {
+        projectionName,
+        streamId,
+        attempt: attempt + 1,
+        timeoutMs: READ_TIMEOUTS_MS[attempt],
+      });
+      if (isTimeoutError(error)) {
+        await resetRealtimeDbConnection(database, logger, projectionName, streamId);
+      }
+      if (attempt < READ_TIMEOUTS_MS.length - 1) {
+        await sleep(500 * (attempt + 1));
+      }
+    }
+  }
+
+  safeLog.error(logger, 'Realtime DB read failed after retries', lastError);
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('Realtime DB read failed after retries.');
+};
+
 export const handleInlineProjections = async <
   EventType extends Event = Event,
   EventMetaDataType extends RealtimeDBReadEventMetadata = RealtimeDBReadEventMetadata,
@@ -102,7 +183,13 @@ const handleSingleProjection = async <
     });
 
     const projectionRef = database.ref(`projections/${projection.name}/${streamId}`);
-    const snapshot = await projectionRef.once('value');
+    const snapshot = await readSnapshotWithRetry(
+      projectionRef,
+      database,
+      logger,
+      projection.name,
+      streamId,
+    );
     const document = snapshot.val() ?? null;
 
     safeLog.debug(logger, 'Read document', {
