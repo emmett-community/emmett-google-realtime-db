@@ -295,7 +295,7 @@ In [src/index.ts](src/index.ts:50-57):
 
 ```typescript
 const eventStore = wireRealtimeDBProjections({
-  eventStore: baseEventStore,
+  eventStore: asEventStore(baseEventStore),
   database,
   projections: [
     shoppingCartDetailsProjection,

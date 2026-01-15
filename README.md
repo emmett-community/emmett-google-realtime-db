@@ -28,7 +28,10 @@ npm install @emmett-community/emmett-google-realtime-db firebase-admin
 
 ```typescript
 import { realtimeDBInlineProjection, wireRealtimeDBProjections } from '@emmett-community/emmett-google-realtime-db';
-import { getFirestoreEventStore } from '@emmett-community/emmett-google-firestore';
+import {
+  getFirestoreEventStore,
+  asEventStore,
+} from '@emmett-community/emmett-google-firestore';
 import * as admin from 'firebase-admin';
 
 admin.initializeApp({ /* config */ });
@@ -67,7 +70,7 @@ const shoppingCartSummaryProjection = realtimeDBInlineProjection<
 
 const baseEventStore = getFirestoreEventStore(firestore);
 const eventStore = wireRealtimeDBProjections({
-  eventStore: baseEventStore,
+  eventStore: asEventStore(baseEventStore),
   database,
   projections: [shoppingCartSummaryProjection],
 });
@@ -207,6 +210,7 @@ npm test
 ```
 
 Visit:
+
 - API: http://localhost:3000
 - Firebase UI: http://localhost:4000
 
@@ -294,7 +298,7 @@ Logging is optional and opt-in. To enable logging, provide a logger instance:
 import pino from 'pino';
 
 const eventStore = wireRealtimeDBProjections({
-  eventStore: baseEventStore,
+  eventStore: asEventStore(baseEventStore),
   database,
   projections: [shoppingCartSummaryProjection],
   observability: {
@@ -349,6 +353,7 @@ While this package is EventStore-agnostic, the most common pattern is:
 - **Projections**: Stored in Realtime Database (using this package)
 
 This combination provides:
+
 - Strong consistency for events (Firestore ACID transactions)
 - Projection updates immediately after appends
 - Real-time read models (Realtime Database synchronization)

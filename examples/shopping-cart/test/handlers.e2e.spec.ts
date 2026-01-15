@@ -1,6 +1,9 @@
 import { getInMemoryMessageBus } from '@event-driven-io/emmett';
 import { Firestore } from '@google-cloud/firestore';
-import { getFirestoreEventStore } from '@emmett-community/emmett-google-firestore';
+import {
+  getFirestoreEventStore,
+  asEventStore,
+} from '@emmett-community/emmett-google-firestore';
 import { wireRealtimeDBProjections } from '@emmett-community/emmett-google-realtime-db';
 import {
   ApiE2ESpecification,
@@ -121,7 +124,7 @@ void describe('ShoppingCart e2e (OpenAPI)', () => {
 
     const baseEventStore = getFirestoreEventStore(firestore);
     const eventStore = wireRealtimeDBProjections({
-      eventStore: baseEventStore,
+      eventStore: asEventStore(baseEventStore),
       database,
       projections: [
         shoppingCartDetailsProjection,
@@ -177,6 +180,27 @@ void describe('ShoppingCart e2e (OpenAPI)', () => {
   const auth = (request: ReturnType<TestRequest>) =>
     request.set('Authorization', 'Bearer token-writer');
 
+  const getRandomProduct = (): ProductItem => {
+    return {
+      productId: randomUUID(),
+      quantity: Math.floor(Math.random() * 10) + 1,
+    };
+  };
+
+  const productItem = getRandomProduct();
+
+  const openedShoppingCart: TestRequest = (request) =>
+    auth(
+      request
+        .post(`/clients/${clientId}/shopping-carts/current/product-items`)
+        .send(productItem),
+    );
+
+  const confirmShoppingCart: TestRequest = (request) =>
+    auth(
+      request.post(`/clients/${clientId}/shopping-carts/current/confirm`),
+    );
+
   void describe('When empty', () => {
     void it('adds product item', () => {
       return given()
@@ -204,13 +228,6 @@ void describe('ShoppingCart e2e (OpenAPI)', () => {
   });
 
   void describe('When open', () => {
-    const openedShoppingCart: TestRequest = (request) =>
-      auth(
-        request
-          .post(`/clients/${clientId}/shopping-carts/current/product-items`)
-          .send(productItem),
-      );
-
     void it('confirms cart', () => {
       return given(openedShoppingCart)
         .when((request) =>
@@ -274,21 +291,8 @@ void describe('ShoppingCart e2e (OpenAPI)', () => {
   });
 
   void describe('After confirmed', () => {
-    const confirmedShoppingCart: TestRequest = (request) =>
-      auth(
-        request
-          .post(`/clients/${clientId}/shopping-carts/current/product-items`)
-          .send(productItem),
-      ).then(() =>
-        auth(
-          request.post(
-            `/clients/${clientId}/shopping-carts/current/confirm`,
-          ),
-        ),
-      );
-
     void it('returns 404 when getting details (projection filtered)', () => {
-      return given(confirmedShoppingCart)
+      return given(openedShoppingCart, confirmShoppingCart)
         .when((request) =>
           request
             .get(`/clients/${clientId}/shopping-carts/current`)
@@ -298,7 +302,7 @@ void describe('ShoppingCart e2e (OpenAPI)', () => {
     });
 
     void it('returns 404 when getting summary (projection deleted)', () => {
-      return given(confirmedShoppingCart)
+      return given(openedShoppingCart, confirmShoppingCart)
         .when((request) =>
           request
             .get(`/clients/${clientId}/shopping-carts/current/summary`)
@@ -334,12 +338,4 @@ void describe('ShoppingCart e2e (OpenAPI)', () => {
     });
   });
 
-  const getRandomProduct = (): ProductItem => {
-    return {
-      productId: randomUUID(),
-      quantity: Math.floor(Math.random() * 10) + 1,
-    };
-  };
-
-  const productItem = getRandomProduct();
 });

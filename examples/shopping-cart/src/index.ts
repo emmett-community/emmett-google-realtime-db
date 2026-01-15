@@ -2,7 +2,10 @@ import {
   getInMemoryMessageBus,
   IllegalStateError,
 } from '@event-driven-io/emmett';
-import { getFirestoreEventStore } from '@emmett-community/emmett-google-firestore';
+import {
+  getFirestoreEventStore,
+  asEventStore,
+} from '@emmett-community/emmett-google-firestore';
 import { wireRealtimeDBProjections } from '@emmett-community/emmett-google-realtime-db';
 import {
   createOpenApiValidatorOptions,
@@ -12,6 +15,7 @@ import {
   type ImportedHandlerModules,
   type SecurityHandlers,
 } from '@emmett-community/emmett-expressjs-with-openapi';
+import { createLogger } from '@emmett-community/emmett-observability';
 import type { Application } from 'express';
 import admin from 'firebase-admin';
 import path from 'node:path';
@@ -30,6 +34,13 @@ const __dirname = path.dirname(__filename);
 const FIRESTORE_PROJECT_ID = process.env.FIRESTORE_PROJECT_ID || 'demo-project';
 const FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST;
 const DATABASE_EMULATOR_HOST = process.env.FIREBASE_DATABASE_EMULATOR_HOST;
+
+// Logger initialization
+const logger = createLogger({
+  serviceName: 'shopping-cart',
+  environment: process.env.NODE_ENV,
+  logLevel: process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error',
+});
 
 // Initialize Firebase Admin
 admin.initializeApp({
@@ -57,16 +68,19 @@ if (DATABASE_EMULATOR_HOST) {
 }
 
 // Create Firestore event store
-const baseEventStore = getFirestoreEventStore(firestore);
+const baseEventStore = getFirestoreEventStore(firestore, {
+  observability: { logger },
+});
 
 // Wire Realtime DB projections to the event store
-const eventStore = wireRealtimeDBProjections<typeof baseEventStore>({
-  eventStore: baseEventStore,
+const eventStore = wireRealtimeDBProjections({
+  eventStore: asEventStore(baseEventStore),
   database,
   projections: [
     shoppingCartDetailsProjection,
     shoppingCartShortInfoProjection,
   ],
+  observability: { logger }
 });
 
 const messageBus = getInMemoryMessageBus();
@@ -139,6 +153,7 @@ const mapErrorToProblemDetails: ErrorToProblemDetailsMapping = (error) => {
 
 export const app: Application = await getApplication({
   mapError: mapErrorToProblemDetails,
+  observability: { logger },
   openApiValidator: createOpenApiValidatorOptions(openApiFilePath, {
     validateRequests: true,
     validateResponses: process.env.NODE_ENV !== 'production',
@@ -159,20 +174,26 @@ export const app: Application = await getApplication({
   }),
 });
 
+const gracefulShutdown = async (signal: string) => {
+  logger.info({ signal }, 'Shutting down gracefully');  
+  await firestore.terminate();
+  await admin.app().delete();
+  process.exit(0);
+};
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number(process.env.PORT ?? 3000);
   startAPI(app, { port });
-  console.log(`🚀 Shopping Cart API listening on http://localhost:${port}`);
-  console.log('OpenAPI doc available at /api-docs/openapi.yml');
-  console.log(
-    `Firebase Emulator UI: http://localhost:4000 (Firestore + Realtime DB)`,
+  logger.info(
+    {
+      port,
+      apiDocsUrl: '/api-docs/openapi.yml',
+      firebaseEmulatorUrl: 'http://localhost:4000'      
+    },
+    'Shopping Cart API started',
   );
 }
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\nShutting down gracefully...');
-  await firestore.terminate();
-  await admin.app().delete();
-  process.exit(0);
-});
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

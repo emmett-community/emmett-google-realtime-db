@@ -21,12 +21,17 @@ RUN cd examples/shopping-cart && npm ci
 
 FROM node:20-alpine AS runner
 
-WORKDIR /app/examples/shopping-cart
+WORKDIR /app
 ENV NODE_ENV=production
 
 # Provide the locally linked library target so the symlink installed from file:../.. resolves
 COPY --from=builder /app/package*.json /app/
 COPY --from=builder /app/dist /app/dist
+
+# Install runtime dependencies needed by the shared library
+RUN npm ci --omit=dev
+
+WORKDIR /app/examples/shopping-cart
 
 # Copy runtime artifacts
 COPY --from=builder /app/examples/shopping-cart/node_modules ./node_modules
