@@ -207,6 +207,7 @@ npm test
 ```
 
 Visit:
+
 - API: http://localhost:3000
 - Firebase UI: http://localhost:4000
 
@@ -349,6 +350,7 @@ While this package is EventStore-agnostic, the most common pattern is:
 - **Projections**: Stored in Realtime Database (using this package)
 
 This combination provides:
+
 - Strong consistency for events (Firestore ACID transactions)
 - Projection updates immediately after appends
 - Real-time read models (Realtime Database synchronization)
