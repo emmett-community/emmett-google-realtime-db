@@ -28,7 +28,10 @@ npm install @emmett-community/emmett-google-realtime-db firebase-admin
 
 ```typescript
 import { realtimeDBInlineProjection, wireRealtimeDBProjections } from '@emmett-community/emmett-google-realtime-db';
-import { getFirestoreEventStore } from '@emmett-community/emmett-google-firestore';
+import {
+  getFirestoreEventStore,
+  asEventStore,
+} from '@emmett-community/emmett-google-firestore';
 import * as admin from 'firebase-admin';
 
 admin.initializeApp({ /* config */ });
@@ -67,7 +70,7 @@ const shoppingCartSummaryProjection = realtimeDBInlineProjection<
 
 const baseEventStore = getFirestoreEventStore(firestore);
 const eventStore = wireRealtimeDBProjections({
-  eventStore: baseEventStore,
+  eventStore: asEventStore(baseEventStore),
   database,
   projections: [shoppingCartSummaryProjection],
 });
@@ -295,7 +298,7 @@ Logging is optional and opt-in. To enable logging, provide a logger instance:
 import pino from 'pino';
 
 const eventStore = wireRealtimeDBProjections({
-  eventStore: baseEventStore,
+  eventStore: asEventStore(baseEventStore),
   database,
   projections: [shoppingCartSummaryProjection],
   observability: {

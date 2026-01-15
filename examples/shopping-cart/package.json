@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@emmett-community/emmett-expressjs-with-openapi": "^0.8.0",
-    "@emmett-community/emmett-google-firestore": "^0.4.0",
+    "@emmett-community/emmett-google-firestore": "^0.5.0",
     "@emmett-community/emmett-google-realtime-db": "file:../..",
     "@emmett-community/emmett-observability": "^0.3.0",
     "@event-driven-io/emmett": "0.39.1",
@@ -29,8 +29,7 @@
     "express-openapi-validator": "^5.6.0",
     "firebase-admin": "^13.0.0",
     "http-problem-details": "^0.1.7",
-    "pino-http": "^9.0.0",
-    "supertest": "^7.0.0"
+    "pino-http": "^9.0.0"    
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

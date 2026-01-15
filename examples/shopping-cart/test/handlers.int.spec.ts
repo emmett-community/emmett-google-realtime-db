@@ -1,6 +1,9 @@
 import { getInMemoryMessageBus } from '@event-driven-io/emmett';
 import type { Firestore } from '@google-cloud/firestore';
-import { getFirestoreEventStore } from '@emmett-community/emmett-google-firestore';
+import {
+  getFirestoreEventStore,
+  asEventStore,
+} from '@emmett-community/emmett-google-firestore';
 import { wireRealtimeDBProjections } from '@emmett-community/emmett-google-realtime-db';
 import {
   ApiSpecification,
@@ -282,7 +285,7 @@ void describe('ShoppingCart integration (OpenAPI)', () => {
         firestore as unknown as Firestore,
       );
       return wireRealtimeDBProjections({
-        eventStore: baseEventStore,
+        eventStore: asEventStore(baseEventStore),
         database,
         projections: [
           shoppingCartDetailsProjection,

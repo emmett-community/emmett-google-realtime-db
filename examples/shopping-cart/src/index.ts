@@ -2,7 +2,10 @@ import {
   getInMemoryMessageBus,
   IllegalStateError,
 } from '@event-driven-io/emmett';
-import { getFirestoreEventStore } from '@emmett-community/emmett-google-firestore';
+import {
+  getFirestoreEventStore,
+  asEventStore,
+} from '@emmett-community/emmett-google-firestore';
 import { wireRealtimeDBProjections } from '@emmett-community/emmett-google-realtime-db';
 import {
   createOpenApiValidatorOptions,
@@ -70,8 +73,8 @@ const baseEventStore = getFirestoreEventStore(firestore, {
 });
 
 // Wire Realtime DB projections to the event store
-const eventStore = wireRealtimeDBProjections<typeof baseEventStore>({
-  eventStore: baseEventStore,
+const eventStore = wireRealtimeDBProjections({
+  eventStore: asEventStore(baseEventStore),
   database,
   projections: [
     shoppingCartDetailsProjection,

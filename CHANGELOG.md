@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-01-15
+
+### Changed
+
+- Shopping cart example now wires `@emmett-community/emmett-observability` logging into the API, event store, and projections so startup/shutdown events run through the shared logger with configurable log level and HTTP logging flags.
+- The example's Docker Compose fixture pins the emulator to `linux/amd64` and injects `NODE_ENV`, `LOG_LEVEL`, and `LOG_HTTP_ENABLED` so the API and tests run with consistent observability defaults while the retry-testing changes are exercised.
+
 ## [0.6.0] - 2026-01-14
 
 ### Changed
