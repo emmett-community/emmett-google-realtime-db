@@ -137,6 +137,10 @@ function realtimeDBInlineProjection<Doc, EventType>(
 - `evolve`: Function that applies events to the projection state
 - `initialState` (optional): Function that returns initial state (required for non-nullable evolve)
 
+**Note on Realtime DB reads:**
+
+`realtimeDBInlineProjection` wraps `ref(...).once('value')` with a timeout + retry mechanism to avoid hangs when the RTDB connection becomes stale. Current defaults: 3 attempts with timeouts of 5s, 8s, and 12s, with a short backoff between tries. When a timeout happens, the Realtime DB client is reset via `goOffline()` + `goOnline()` before retrying. If you need different timeout/retry behavior, you can still wrap RTDB reads in your application where needed.
+
 **Example:**
 
 ```typescript
