@@ -35,7 +35,8 @@ export type RealtimeDBProjectionInlineHandlerContext = {
 
 export type RealtimeDBInlineProjectionHandler<
   EventType extends Event = Event,
-  EventMetaDataType extends RealtimeDBReadEventMetadata = RealtimeDBReadEventMetadata,
+  EventMetaDataType extends RealtimeDBReadEventMetadata =
+    RealtimeDBReadEventMetadata,
 > = ProjectionHandler<
   EventType,
   EventMetaDataType,
@@ -44,7 +45,8 @@ export type RealtimeDBInlineProjectionHandler<
 
 export type RealtimeDBInlineProjectionDefinition<
   EventType extends Event = Event,
-  EventMetaDataType extends RealtimeDBReadEventMetadata = RealtimeDBReadEventMetadata,
+  EventMetaDataType extends RealtimeDBReadEventMetadata =
+    RealtimeDBReadEventMetadata,
 > = ProjectionDefinition<
   EventType,
   EventMetaDataType,
@@ -53,7 +55,8 @@ export type RealtimeDBInlineProjectionDefinition<
 
 export type InlineProjectionHandlerOptions<
   EventType extends Event = Event,
-  EventMetaDataType extends RealtimeDBReadEventMetadata = RealtimeDBReadEventMetadata,
+  EventMetaDataType extends RealtimeDBReadEventMetadata =
+    RealtimeDBReadEventMetadata,
 > = {
   events: Array<ReadEvent<EventType, EventMetaDataType>>;
   projections: RealtimeDBInlineProjectionDefinition<
@@ -68,15 +71,20 @@ export type InlineProjectionHandlerOptions<
 export type RealtimeDBWithNotNullDocumentEvolve<
   Doc extends Record<string, unknown>,
   EventType extends Event,
-  EventMetaDataType extends RealtimeDBReadEventMetadata = RealtimeDBReadEventMetadata,
+  EventMetaDataType extends RealtimeDBReadEventMetadata =
+    RealtimeDBReadEventMetadata,
 > =
-  | ((document: Doc, event: ReadEvent<EventType, EventMetaDataType>) => Doc | null)
+  | ((
+      document: Doc,
+      event: ReadEvent<EventType, EventMetaDataType>,
+    ) => Doc | null)
   | ((document: Doc, event: ReadEvent<EventType>) => Promise<Doc | null>);
 
 export type RealtimeDBWithNullableDocumentEvolve<
   Doc extends Record<string, unknown>,
   EventType extends Event,
-  EventMetaDataType extends RealtimeDBReadEventMetadata = RealtimeDBReadEventMetadata,
+  EventMetaDataType extends RealtimeDBReadEventMetadata =
+    RealtimeDBReadEventMetadata,
 > =
   | ((
       document: Doc | null,
@@ -90,7 +98,8 @@ export type RealtimeDBWithNullableDocumentEvolve<
 export type RealtimeDBInlineProjectionOptions<
   Doc extends Record<string, unknown>,
   EventType extends Event,
-  EventMetaDataType extends RealtimeDBReadEventMetadata = RealtimeDBReadEventMetadata,
+  EventMetaDataType extends RealtimeDBReadEventMetadata =
+    RealtimeDBReadEventMetadata,
 > = {
   name?: string;
   schemaVersion?: number;

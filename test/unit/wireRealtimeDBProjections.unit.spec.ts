@@ -37,7 +37,9 @@ describe('wireRealtimeDBProjections', () => {
     });
 
     it('intercepts appendToStream', async () => {
-      const originalAppend = jest.fn().mockResolvedValue({ nextExpectedStreamVersion: BigInt(0) });
+      const originalAppend = jest
+        .fn()
+        .mockResolvedValue({ nextExpectedStreamVersion: BigInt(0) });
       mockEventStore.appendToStream = originalAppend;
 
       const wired = wireRealtimeDBProjections({
@@ -51,11 +53,7 @@ describe('wireRealtimeDBProjections', () => {
       await wired.appendToStream('stream-1', events, {});
 
       // Original append should have been called
-      expect(originalAppend).toHaveBeenCalledWith(
-        'stream-1',
-        events,
-        {},
-      );
+      expect(originalAppend).toHaveBeenCalledWith('stream-1', events, {});
     });
 
     it('calls original appendToStream first', async () => {
@@ -80,7 +78,9 @@ describe('wireRealtimeDBProjections', () => {
         projections: [testProjection],
       });
 
-      const events = [{ type: 'ItemAdded', data: { itemId: 'item-1', quantity: 1 } }];
+      const events = [
+        { type: 'ItemAdded', data: { itemId: 'item-1', quantity: 1 } },
+      ];
 
       await wired.appendToStream('stream-1', events, {});
 
@@ -174,18 +174,22 @@ describe('wireRealtimeDBProjections', () => {
         projections: [counterProjection],
       });
 
-      const events = [{ type: 'ItemAdded', data: { itemId: 'item-1', quantity: 1 } }];
+      const events = [
+        { type: 'ItemAdded', data: { itemId: 'item-1', quantity: 1 } },
+      ];
 
-      await expect(wired.appendToStream('stream-1', events, {})).rejects.toThrow(
-        'Append failed',
-      );
+      await expect(
+        wired.appendToStream('stream-1', events, {}),
+      ).rejects.toThrow('Append failed');
 
       // Projections should not have been updated
       expect(mockRef.set).not.toHaveBeenCalled();
     });
 
     it('preserves append result even if projection update fails', async () => {
-      const appendSpy = jest.fn().mockResolvedValue({ streamVersion: BigInt(1) });
+      const appendSpy = jest
+        .fn()
+        .mockResolvedValue({ streamVersion: BigInt(1) });
       mockEventStore.appendToStream = appendSpy;
 
       const failingProjection = {
@@ -205,9 +209,9 @@ describe('wireRealtimeDBProjections', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       // Append succeeds but projection fails
-      await expect(wired.appendToStream('stream-1', events, {})).rejects.toThrow(
-        'Projection failed',
-      );
+      await expect(
+        wired.appendToStream('stream-1', events, {}),
+      ).rejects.toThrow('Projection failed');
 
       // Original append was called
       expect(appendSpy).toHaveBeenCalled();
@@ -219,7 +223,9 @@ describe('wireRealtimeDBProjections', () => {
         globalPosition: BigInt(999),
       };
 
-      mockEventStore.appendToStream = jest.fn().mockResolvedValue(expectedResult);
+      mockEventStore.appendToStream = jest
+        .fn()
+        .mockResolvedValue(expectedResult);
 
       const wired = wireRealtimeDBProjections({
         eventStore: mockEventStore,
@@ -293,7 +299,9 @@ describe('wireRealtimeDBProjections', () => {
         projections: [counterProjection, cartProjection],
       });
 
-      const events = [itemAdded('item-1', 1, { position: BigInt(0), unitPrice: 100 })];
+      const events = [
+        itemAdded('item-1', 1, { position: BigInt(0), unitPrice: 100 }),
+      ];
 
       await wired.appendToStream('stream-1', events, {});
 

@@ -4,14 +4,14 @@ import { wireRealtimeDBProjections } from '../../src/wireRealtimeDBProjections';
 import type { Logger } from '../../src/observability';
 import { counterProjection } from '../fixtures/projections';
 import { itemAdded } from '../fixtures/events';
-import { InMemoryRealtimeDb } from '../support/inMemoryRealtimeDb';
+import { createInMemoryDatabase } from '../../src/testing';
 
 describe('Observability - Integration Tests', () => {
   let database: Database;
   let mockEventStore: jest.Mocked<EventStore>;
 
   beforeEach(async () => {
-    database = new InMemoryRealtimeDb() as unknown as Database;
+    database = createInMemoryDatabase();
 
     mockEventStore = {
       appendToStream: jest.fn().mockResolvedValue({
@@ -199,10 +199,14 @@ describe('Observability - Integration Tests', () => {
       });
 
       const events1 = [itemAdded('item-1', 1, { position: BigInt(0) })];
-      const result1 = await wiredWithout.appendToStream('stream-1', events1 as any, {});
+      const result1 = await wiredWithout.appendToStream(
+        'stream-1',
+        events1 as any,
+        {},
+      );
 
       // Reset for second test
-      database = new InMemoryRealtimeDb() as unknown as Database;
+      database = createInMemoryDatabase();
       mockEventStore.appendToStream = jest.fn().mockResolvedValue({
         streamVersion: BigInt(1),
         nextExpectedStreamVersion: BigInt(2),
@@ -224,10 +228,16 @@ describe('Observability - Integration Tests', () => {
       });
 
       const events2 = [itemAdded('item-1', 1, { position: BigInt(0) })];
-      const result2 = await wiredWith.appendToStream('stream-2', events2 as any, {});
+      const result2 = await wiredWith.appendToStream(
+        'stream-2',
+        events2 as any,
+        {},
+      );
 
       // Results should be equivalent
-      expect(result1.nextExpectedStreamVersion).toBe(result2.nextExpectedStreamVersion);
+      expect(result1.nextExpectedStreamVersion).toBe(
+        result2.nextExpectedStreamVersion,
+      );
     });
   });
 });

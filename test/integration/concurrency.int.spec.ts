@@ -1,7 +1,7 @@
 import type { Database } from 'firebase-admin/database';
 import type { EventStore } from '@event-driven-io/emmett';
 import { wireRealtimeDBProjections } from '../../src/wireRealtimeDBProjections';
-import { getProjectionState } from '../../src/testing';
+import { createInMemoryDatabase, getProjectionState } from '../../src/testing';
 import {
   cartProjection,
   counterProjection,
@@ -9,21 +9,17 @@ import {
   type PersistedCounterState,
 } from '../fixtures/projections';
 import { itemAdded, itemRemoved } from '../fixtures/events';
-import { InMemoryRealtimeDb } from '../support/inMemoryRealtimeDb';
+import { createVersionedAppendMock } from '../support/versionedAppendMock';
 
 describe('High Volume Operations Integration', () => {
   let database: Database;
   let mockEventStore: jest.Mocked<EventStore>;
 
   beforeEach(async () => {
-    database = new InMemoryRealtimeDb() as unknown as Database;
+    database = createInMemoryDatabase();
 
     mockEventStore = {
-      appendToStream: jest.fn().mockImplementation(async () => ({
-        streamVersion: BigInt(1),
-        nextExpectedStreamVersion: BigInt(2),
-        createdNewStream: false,
-      })),
+      appendToStream: createVersionedAppendMock(),
       readStream: jest.fn(),
       aggregateStream: jest.fn(),
     } as any;
@@ -75,7 +71,9 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 20; i++) {
         await wired.appendToStream(
           streamId,
-          [itemAdded(`item-${i}`, 1, { position: BigInt(i), unitPrice: 100 })] as any,
+          [
+            itemAdded(`item-${i}`, 1, { position: BigInt(i), unitPrice: 100 }),
+          ] as any,
           {},
         );
       }
@@ -163,7 +161,13 @@ describe('High Volume Operations Integration', () => {
         projections: [counterProjection],
       });
 
-      const streams = ['stream-1', 'stream-2', 'stream-3', 'stream-4', 'stream-5'];
+      const streams = [
+        'stream-1',
+        'stream-2',
+        'stream-3',
+        'stream-4',
+        'stream-5',
+      ];
 
       // Process each stream sequentially
       for (const streamId of streams) {
@@ -198,7 +202,9 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 10; i++) {
         await wired.appendToStream(
           'stream-isolated-1',
-          [itemAdded(`item-${i}`, 2, { position: BigInt(i), unitPrice: 50 })] as any,
+          [
+            itemAdded(`item-${i}`, 2, { position: BigInt(i), unitPrice: 50 }),
+          ] as any,
           {},
         );
       }
@@ -207,7 +213,9 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 15; i++) {
         await wired.appendToStream(
           'stream-isolated-2',
-          [itemAdded(`item-${i}`, 1, { position: BigInt(i), unitPrice: 100 })] as any,
+          [
+            itemAdded(`item-${i}`, 1, { position: BigInt(i), unitPrice: 100 }),
+          ] as any,
           {},
         );
       }
@@ -245,7 +253,9 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 10; i++) {
         await wired.appendToStream(
           streamId,
-          [itemAdded(`item-${i}`, 3, { position: BigInt(i), unitPrice: 200 })] as any,
+          [
+            itemAdded(`item-${i}`, 3, { position: BigInt(i), unitPrice: 200 }),
+          ] as any,
           {},
         );
       }
@@ -397,7 +407,9 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 20; i++) {
         await wired.appendToStream(
           streamId,
-          [itemAdded(`item-${i}`, 2, { position: BigInt(i), unitPrice: 100 })] as any,
+          [
+            itemAdded(`item-${i}`, 2, { position: BigInt(i), unitPrice: 100 }),
+          ] as any,
           {},
         );
       }
@@ -406,7 +418,9 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 10; i++) {
         await wired.appendToStream(
           streamId,
-          [itemRemoved(`item-${i}`, { position: BigInt(i + 20), quantity: 1 })] as any,
+          [
+            itemRemoved(`item-${i}`, { position: BigInt(i + 20), quantity: 1 }),
+          ] as any,
           {},
         );
       }

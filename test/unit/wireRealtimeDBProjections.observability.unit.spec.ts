@@ -34,7 +34,9 @@ describe('wireRealtimeDBProjections - Observability', () => {
       });
 
       const events = [itemAdded('item-1', 1)];
-      await expect(wired.appendToStream('stream-1', events, {})).resolves.toBeDefined();
+      await expect(
+        wired.appendToStream('stream-1', events, {}),
+      ).resolves.toBeDefined();
     });
 
     it('should work with empty observability options', async () => {
@@ -46,7 +48,9 @@ describe('wireRealtimeDBProjections - Observability', () => {
       });
 
       const events = [itemAdded('item-1', 1)];
-      await expect(wired.appendToStream('stream-1', events, {})).resolves.toBeDefined();
+      await expect(
+        wired.appendToStream('stream-1', events, {}),
+      ).resolves.toBeDefined();
     });
   });
 
@@ -131,9 +135,9 @@ describe('wireRealtimeDBProjections - Observability', () => {
 
       const events = [itemAdded('item-1', 1)];
 
-      await expect(wired.appendToStream('stream-1', events, {})).rejects.toThrow(
-        'Append failed',
-      );
+      await expect(
+        wired.appendToStream('stream-1', events, {}),
+      ).rejects.toThrow('Append failed');
 
       // Canonical format: ({ err: Error }, message)
       expect(errorFn).toHaveBeenCalledWith(

@@ -212,7 +212,12 @@ describe('realtimeDBInlineProjection', () => {
       const events = [orderCancelled('order-1', { position: BigInt(0) })];
 
       await cartProjection.handle(events, {
-        document: { items: [], totalQuantity: 0, totalAmount: 0, status: 'Open' } as any,
+        document: {
+          items: [],
+          totalQuantity: 0,
+          totalAmount: 0,
+          status: 'Open',
+        } as any,
         streamId: 'stream-1',
         database: {} as Database,
         projectionRef: mockRef as any,

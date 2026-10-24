@@ -7,7 +7,10 @@ import { handleInlineProjections } from '../../src/projections/realtimeDBInlineP
 import { getProjectionState } from '../../src/testing';
 import { wireRealtimeDBProjections } from '../../src/wireRealtimeDBProjections';
 import { itemAdded } from '../fixtures/events';
-import { counterProjection, type PersistedCounterState } from '../fixtures/projections';
+import {
+  counterProjection,
+  type PersistedCounterState,
+} from '../fixtures/projections';
 
 jest.setTimeout(60000);
 
@@ -27,12 +30,24 @@ const startEmulator = async () => {
     .withExposedPorts(4000, 8080, 9000)
     .withBindMounts([
       {
-        source: path.join(process.cwd(), 'test', 'support', 'firebase', 'firebase.json'),
+        source: path.join(
+          process.cwd(),
+          'test',
+          'support',
+          'firebase',
+          'firebase.json',
+        ),
         target: '/app/firebase.json',
         mode: 'ro' as const,
       },
       {
-        source: path.join(process.cwd(), 'test', 'support', 'firebase', '.firebaserc'),
+        source: path.join(
+          process.cwd(),
+          'test',
+          'support',
+          'firebase',
+          '.firebaserc',
+        ),
         target: '/app/.firebaserc',
         mode: 'ro' as const,
       },

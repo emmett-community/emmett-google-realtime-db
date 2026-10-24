@@ -1,5 +1,6 @@
 import type { Database } from 'firebase-admin/database';
 import {
+  createInMemoryDatabase,
   testProjection,
   getProjectionState,
   clearProjection,
@@ -19,13 +20,12 @@ import {
   orderConfirmed,
   orderCancelled,
 } from '../fixtures/events';
-import { InMemoryRealtimeDb } from '../support/inMemoryRealtimeDb';
 
 describe('Projection State Integration', () => {
   let database: Database;
 
   beforeEach(async () => {
-    database = new InMemoryRealtimeDb() as unknown as Database;
+    database = createInMemoryDatabase();
   });
 
   describe('Testing Utilities Validation', () => {
@@ -571,7 +571,9 @@ describe('Projection State Integration', () => {
       const counterSnapshot = await database
         .ref('projections/test-counter')
         .once('value');
-      const cartSnapshot = await database.ref('projections/test-cart').once('value');
+      const cartSnapshot = await database
+        .ref('projections/test-cart')
+        .once('value');
 
       expect(counterSnapshot.exists()).toBe(true);
       expect(cartSnapshot.exists()).toBe(true);

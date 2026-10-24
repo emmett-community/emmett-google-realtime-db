@@ -10,7 +10,9 @@ import { safeLog, type ObservabilityOptions } from './observability';
 // Tracer name MUST match package.json name exactly
 const tracer = trace.getTracer('@emmett-community/emmett-google-realtime-db');
 
-export type WireRealtimeDBProjectionsOptions<T extends EventStore = EventStore> = {
+export type WireRealtimeDBProjectionsOptions<
+  T extends EventStore = EventStore,
+> = {
   eventStore: T;
   database: Database;
   projections: RealtimeDBInlineProjectionDefinition[];
@@ -43,7 +45,11 @@ export const wireRealtimeDBProjections = <T extends EventStore>(
             eventCount: events.length,
           });
 
-          const result = await originalAppend(streamName, events, appendOptions);
+          const result = await originalAppend(
+            streamName,
+            events,
+            appendOptions,
+          );
 
           // Create ReadEvents with metadata from append result
           // nextExpectedStreamVersion is the version AFTER appending, so event positions are:
@@ -51,17 +57,22 @@ export const wireRealtimeDBProjections = <T extends EventStore>(
           const eventsLength = BigInt(events.length);
 
           // Support both old (streamVersion) and new (nextExpectedStreamVersion) API
-          const versionValue =
-            (result as any).nextExpectedStreamVersion ??
-            (result as any).streamVersion;
+          const { nextExpectedStreamVersion, streamVersion } = result as {
+            nextExpectedStreamVersion?: bigint | number;
+            streamVersion?: bigint | number;
+          };
+          const versionValue = nextExpectedStreamVersion ?? streamVersion;
           const nextVersion =
-            typeof versionValue === 'bigint' ? versionValue : BigInt(versionValue);
+            typeof versionValue === 'bigint'
+              ? versionValue
+              : BigInt(versionValue as number);
 
           const readEvents = events.map((event, index) => {
             // nextExpectedStreamVersion is the version of the LAST event in the batch
             // For a batch of N events, the first event has position: nextExpectedStreamVersion - N + 1
             // Each subsequent event: (nextExpectedStreamVersion - N + 1) + index
-            const position = nextVersion - eventsLength + BigInt(1) + BigInt(index);
+            const position =
+              nextVersion - eventsLength + BigInt(1) + BigInt(index);
             return {
               ...event,
               metadata: {
