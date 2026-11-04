@@ -237,7 +237,10 @@ describe('Observability - safeLog', () => {
 
       safeLog.error(logger, 'error msg', 'string error');
 
-      expect(errorFn).toHaveBeenCalledWith({ err: 'string error' }, 'error msg');
+      expect(errorFn).toHaveBeenCalledWith(
+        { err: 'string error' },
+        'error msg',
+      );
     });
   });
 

@@ -236,7 +236,9 @@ describe('Logger Contract', () => {
       });
 
       const events = [itemAdded('item-1', 1)];
-      await expect(wired.appendToStream('stream-1', events, {})).rejects.toThrow();
+      await expect(
+        wired.appendToStream('stream-1', events, {}),
+      ).rejects.toThrow();
 
       expect(errorCalls.length).toBeGreaterThan(0);
 
@@ -293,7 +295,9 @@ describe('Logger Contract', () => {
       });
 
       const events = [itemAdded('item-1', 1)];
-      await expect(wired.appendToStream('stream-1', events, {})).rejects.toThrow();
+      await expect(
+        wired.appendToStream('stream-1', events, {}),
+      ).rejects.toThrow();
 
       expect(errorCalls.length).toBeGreaterThan(0);
 

@@ -10,7 +10,8 @@ Google Realtime Database inline projections for [Emmett](https://event-driven-io
 - ✅ **EventStore-Agnostic** - Works with any Emmett EventStore (Firestore, PostgreSQL, MongoDB, etc.)
 - ✅ **Type-Safe** - Full TypeScript support with projection metadata
 - ✅ **Real-time Read Models** - Queryable views stored in Firebase RTDB
-- ✅ **Testing Utilities** - Helpers for projection validation
+- ✅ **Idempotent** - Events already applied (by stream position) are skipped, so a replay does not change the read model
+- ✅ **Testing Utilities** - Helpers for projection validation and an in-memory Realtime Database for service tests
 - ✅ **Simple Integration** - Wire projections with a single function call
 
 ## Installation
@@ -89,7 +90,29 @@ const summary = await database
 
 ### Inline Projections
 
-Inline projections are **updated immediately after** `appendToStream` completes. Updates run sequentially for matching projections, which makes them predictable, but they are **not transactional** with the event write. Keep projection handlers idempotent to handle retries safely.
+Inline projections are **updated immediately after** `appendToStream` completes. Updates run sequentially for matching projections, which makes them predictable, but they are **not transactional** with the event write. Applying events is idempotent (see below), so a retry or a redelivery is safe.
+
+### Idempotent Application
+
+Every document stores the stream position of the last event it applied in `_metadata.streamPosition`. Before evolving the document, the projection drops the events whose position is at or before the stored one:
+
+- A batch that was already applied changes nothing and writes nothing.
+- A batch that overlaps the stored position applies only its new events.
+- A document without `_metadata.streamPosition` (written by an older version) applies every event.
+
+This assumes that events of a stream arrive in position order. A projection that deleted its document (its `evolve` returned `null`) has no stored position, so a replay of the older events would apply them again; make `evolve` ignore events for a missing document when that matters (the shopping cart example does this).
+
+### Dates
+
+The Realtime Database has no date type. It stores a `Date` as an object without children, which means the field **silently disappears**. To keep dates, the library writes every `Date` and Firestore `Timestamp` found in a document as an **ISO 8601 UTC string** (`2026-10-24T12:30:00.000Z`), at any depth. Your `evolve` can keep working with `Date` values; what you read back from the database is a string, so type the persisted read model with `string` (or convert it when you read it).
+
+### Internal Metadata
+
+Every document is written with a `_metadata` field (`streamId`, `name`, `schemaVersion`, `streamPosition`). It belongs to the library: it drives idempotency and schema versioning, and it is not part of your read model. If a service returns the document as it is, `_metadata` goes out in the API response, so remove it first:
+
+```typescript
+const { _metadata, ...readModel } = document;
+```
 
 ### Realtime Database Structure
 
@@ -143,6 +166,8 @@ function realtimeDBInlineProjection<Doc, EventType>(
 **Note on Realtime DB reads:**
 
 `realtimeDBInlineProjection` wraps `ref(...).once('value')` with a timeout + retry mechanism to avoid hangs when the RTDB connection becomes stale. Current defaults: 3 attempts with timeouts of 5s, 8s, and 12s, with a short backoff between tries. When a timeout happens, the Realtime DB client is reset via `goOffline()` + `goOnline()` before retrying. If you need different timeout/retry behavior, you can still wrap RTDB reads in your application where needed.
+
+Known limitation: against the Firebase emulator, a write made right after the `goOffline()` + `goOnline()` pair did not complete within 10 seconds. It has not been checked against a real database yet, so treat the reset as best effort.
 
 **Example:**
 
@@ -245,6 +270,41 @@ await clearProjection(database, 'projectionName', 'streamId');
 await clearAllProjections(database);
 ```
 
+### In-Memory Realtime Database
+
+Service tests can run the real projection, with no emulator, against an in-memory Realtime Database:
+
+```typescript
+import {
+  createInMemoryDatabase,
+  getProjectionState,
+} from '@emmett-community/emmett-google-realtime-db/testing';
+
+const database = createInMemoryDatabase();
+
+const eventStore = wireRealtimeDBProjections({
+  eventStore: myEventStore,
+  database,
+  projections: [myProjection],
+});
+
+await eventStore.appendToStream(streamId, events);
+
+const state = await getProjectionState(database, 'projectionName', streamId);
+```
+
+The fake follows the real database where projections break, instead of being a plain key-value store:
+
+- Data is a tree: a parent path reads back the nested object, and a child path reads the nested value.
+- Absent data reads as `null`; `set(null)` and `set({})` remove, and `null` fields and empty objects are pruned.
+- `set` throws on `undefined` (also inside arrays), `NaN`, `Infinity` and invalid keys, as the real SDK does.
+- A `Date` that reaches the database is stored as nothing. Projections written with this library never hit it, because they write dates as strings.
+- Arrays are read back as arrays when their keys are dense integers, and as objects otherwise.
+- Supported: `ref`, `child`, `parent`, `root`, `key`, `set`, `update` (with path keys), `remove`, `push`, `once('value')`, `get`, `goOffline` and `goOnline` (no-ops), and snapshots with `val`, `exists`, `key`, `child`, `hasChild`, `hasChildren`, `numChildren`, `forEach` and `exportVal`.
+- Not implemented, they throw a clear error: listeners (`on`, `off`), queries (`orderByChild` and the like), `transaction`, `onDisconnect` and priorities.
+
+A conformance suite (`test/e2e/inMemoryDatabase.conformance.e2e.spec.ts`) runs the same operations against the Firebase emulator and the fake and requires the same results. When you need a behavior the fake does not have, add it together with a case in that suite.
+
 ### Running Package Tests
 
 ```bash
@@ -254,7 +314,8 @@ npm run test:unit
 # Integration tests (in-memory Realtime DB)
 npm run test:int
 
-# E2E tests (Firebase emulators via Testcontainers, requires Docker)
+# E2E tests (Firebase emulators via Testcontainers, requires Docker),
+# including the conformance suite of the in-memory Realtime Database
 npm run test:e2e
 
 # All tests

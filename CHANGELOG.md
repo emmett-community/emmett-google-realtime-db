@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-10-24
+
+### Added
+
+- Idempotent application: a projection skips the events whose stream position is at or before the `_metadata.streamPosition` stored in the document, so a replayed or redelivered batch is applied once. Documents without a stored position apply every event, as before.
+- `toRealtimeDBValue`: returns a copy of a value with every `Date` and Firestore `Timestamp` replaced by an ISO 8601 UTC string.
+- `/testing`: `createInMemoryDatabase` and the `InMemoryRealtimeDatabase` class, an in-memory Realtime Database with tree semantics that follows the real database (absent data is `null`, `null` and `{}` remove, `undefined` throws), and supports `update`, `push`, `get`, snapshots with `exists`, `key`, `forEach` and the like, and `goOffline`/`goOnline` as no-ops. Listeners, queries, `transaction` and `onDisconnect` throw a clear error.
+- A conformance suite that runs the same operations against the Firebase emulator and the in-memory database and requires the same results.
+- README sections on idempotent application, dates, the internal `_metadata` field and the in-memory database.
+
+### Changed
+
+- Projection documents are written through `toRealtimeDBValue`: a `Date` or `Timestamp` in a document is now stored as an ISO 8601 UTC string. The Realtime Database has no date type and drops a `Date` without an error, so such a field used to be missing when the document was read. Code that reads the document gets a string.
+- Integration tests use the in-memory database of `/testing` instead of a flat key-value helper. Their event store mocks return a version that advances per stream, as a real event store does: a fixed version gives every append the same position, which idempotent projections skip.
+- The shopping cart example uses the in-memory database of `/testing` in its integration tests and checks that `openedAt` is stored as an ISO string.
+
+### Notes
+
+- When `evolve` returns `null` the document is removed together with its stored position, so older events replayed afterwards are applied again. Make `evolve` ignore events for a missing document when that matters.
+- The `goOffline()`/`goOnline()` reset after a read timeout is unchanged. Against the Firebase emulator, a write made right after that pair did not complete within 10 seconds. It has not been checked against a real database.
+
 ## [0.7.0] - 2026-01-15
 
 ### Changed

@@ -6,9 +6,11 @@ import type {
   RealtimeDBInlineProjectionDefinition,
   RealtimeDBInlineProjectionOptions,
   RealtimeDBReadEventMetadata,
+  RealtimeDBReadModel,
   RealtimeDBReadModelMetadata,
 } from './types';
 import { safeLog, type Logger } from '../observability';
+import { toRealtimeDBValue } from './serializeValues';
 
 export { RealtimeDBDefaultInlineProjectionName } from './types';
 
@@ -22,7 +24,10 @@ const sleep = (ms: number): Promise<void> =>
 
 const TIMEOUT_ERROR_MESSAGE = 'Realtime DB read timed out.';
 
-const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+const withTimeout = async <T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<T> => {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
@@ -43,12 +48,12 @@ const isTimeoutError = (error: unknown): boolean => {
   return error instanceof Error && error.message === TIMEOUT_ERROR_MESSAGE;
 };
 
-const resetRealtimeDbConnection = async (
+const resetRealtimeDbConnection = (
   database: import('firebase-admin/database').Database,
   logger: Logger | undefined,
   projectionName: string,
   streamId: string,
-): Promise<void> => {
+): void => {
   try {
     safeLog.warn(logger, 'Resetting Realtime DB connection after timeout', {
       projectionName,
@@ -72,7 +77,10 @@ const readSnapshotWithRetry = async (
 
   for (let attempt = 0; attempt < READ_TIMEOUTS_MS.length; attempt += 1) {
     try {
-      return await withTimeout(projectionRef.once('value'), READ_TIMEOUTS_MS[attempt]!);
+      return await withTimeout(
+        projectionRef.once('value'),
+        READ_TIMEOUTS_MS[attempt],
+      );
     } catch (error) {
       lastError = error;
       safeLog.warn(logger, 'Realtime DB read failed, retrying', {
@@ -82,7 +90,7 @@ const readSnapshotWithRetry = async (
         timeoutMs: READ_TIMEOUTS_MS[attempt],
       });
       if (isTimeoutError(error)) {
-        await resetRealtimeDbConnection(database, logger, projectionName, streamId);
+        resetRealtimeDbConnection(database, logger, projectionName, streamId);
       }
       if (attempt < READ_TIMEOUTS_MS.length - 1) {
         await sleep(500 * (attempt + 1));
@@ -98,11 +106,18 @@ const readSnapshotWithRetry = async (
 
 export const handleInlineProjections = async <
   EventType extends Event = Event,
-  EventMetaDataType extends RealtimeDBReadEventMetadata = RealtimeDBReadEventMetadata,
+  EventMetaDataType extends RealtimeDBReadEventMetadata =
+    RealtimeDBReadEventMetadata,
 >(
   options: InlineProjectionHandlerOptions<EventType, EventMetaDataType>,
 ): Promise<void> => {
-  const { events, projections: allProjections, streamId, database, observability } = options;
+  const {
+    events,
+    projections: allProjections,
+    streamId,
+    database,
+    observability,
+  } = options;
   const logger = observability?.logger;
 
   const span = tracer.startSpan('emmett.realtime_db.handle_projections', {
@@ -161,9 +176,13 @@ export const handleInlineProjections = async <
 
 const handleSingleProjection = async <
   EventType extends Event = Event,
-  EventMetaDataType extends RealtimeDBReadEventMetadata = RealtimeDBReadEventMetadata,
+  EventMetaDataType extends RealtimeDBReadEventMetadata =
+    RealtimeDBReadEventMetadata,
 >(
-  projection: RealtimeDBInlineProjectionDefinition<EventType, EventMetaDataType>,
+  projection: RealtimeDBInlineProjectionDefinition<
+    EventType,
+    EventMetaDataType
+  >,
   events: Array<ReadEvent<EventType, EventMetaDataType>>,
   streamId: string,
   database: import('firebase-admin/database').Database,
@@ -182,7 +201,9 @@ const handleSingleProjection = async <
       streamId,
     });
 
-    const projectionRef = database.ref(`projections/${projection.name}/${streamId}`);
+    const projectionRef = database.ref(
+      `projections/${projection.name}/${streamId}`,
+    );
     const snapshot = await readSnapshotWithRetry(
       projectionRef,
       database,
@@ -190,7 +211,7 @@ const handleSingleProjection = async <
       projection.name,
       streamId,
     );
-    const document = snapshot.val() ?? null;
+    const document = (snapshot.val() as RealtimeDBReadModel | null) ?? null;
 
     safeLog.debug(logger, 'Read document', {
       projectionName: projection.name,
@@ -217,14 +238,33 @@ const handleSingleProjection = async <
   }
 };
 
+// The stream position is stored as a string; accept a bigint or a number too.
+const readStoredStreamPosition = (document: unknown): bigint | null => {
+  if (!document || typeof document !== 'object') return null;
+
+  const metadata = (document as { _metadata?: { streamPosition?: unknown } })
+    ._metadata;
+  const position = metadata?.streamPosition;
+  if (position === undefined || position === null) return null;
+
+  try {
+    return BigInt(position as string | number | bigint);
+  } catch {
+    return null;
+  }
+};
+
 export const realtimeDBInlineProjection = <
   Doc extends Record<string, unknown>,
   EventType extends Event,
-  EventMetaDataType extends RealtimeDBReadEventMetadata = RealtimeDBReadEventMetadata,
+  EventMetaDataType extends RealtimeDBReadEventMetadata =
+    RealtimeDBReadEventMetadata,
 >(
   options: RealtimeDBInlineProjectionOptions<Doc, EventType, EventMetaDataType>,
 ): RealtimeDBInlineProjectionDefinition => {
-  const projectionName = options.name ?? ('_default' as typeof RealtimeDBDefaultInlineProjectionName);
+  const projectionName =
+    options.name ??
+    ('_default' as typeof RealtimeDBDefaultInlineProjectionName);
   const schemaVersion = options.schemaVersion ?? 1;
 
   return {
@@ -233,12 +273,25 @@ export const realtimeDBInlineProjection = <
     handle: async (events, { document, projectionRef, streamId }) => {
       if (events.length === 0) return;
 
+      // Idempotency: events at or before the stored stream position were
+      // already applied (redelivery, retry after a failed append response).
+      const storedPosition = readStoredStreamPosition(document);
+      const pendingEvents =
+        storedPosition === null
+          ? events
+          : events.filter(
+              (event) => BigInt(event.metadata.streamPosition) > storedPosition,
+            );
+      if (pendingEvents.length === 0) return;
+      const lastEvent = pendingEvents[pendingEvents.length - 1];
+
       // Strip metadata if present to get raw state
       let rawDocument: Doc | null = null;
       if (document && typeof document === 'object') {
         if ('_metadata' in document) {
-          const { _metadata, ...rest } = document;
-          rawDocument = rest as Doc;
+          rawDocument = Object.fromEntries(
+            Object.entries(document).filter(([key]) => key !== '_metadata'),
+          ) as Doc;
         } else {
           rawDocument = document as Doc;
         }
@@ -251,7 +304,7 @@ export const realtimeDBInlineProjection = <
 
       // Evolve state through all events
       // Note: evolve can create state from null, so we always call it
-      for (const event of events) {
+      for (const event of pendingEvents) {
         state = await options.evolve(
           state as Doc,
           event as ReadEvent<EventType, EventMetaDataType>,
@@ -262,12 +315,12 @@ export const realtimeDBInlineProjection = <
         streamId,
         name: projectionName,
         schemaVersion,
-        streamPosition: events[events.length - 1]!.metadata.streamPosition.toString(),
+        streamPosition: lastEvent.metadata.streamPosition.toString(),
       };
 
       if (state !== null) {
         await projectionRef.set({
-          ...state,
+          ...toRealtimeDBValue(state),
           _metadata: metadata,
         });
       } else {

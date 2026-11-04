@@ -1,7 +1,7 @@
 import type { Database } from 'firebase-admin/database';
 import type { EventStore } from '@event-driven-io/emmett';
 import { wireRealtimeDBProjections } from '../../src/wireRealtimeDBProjections';
-import { getProjectionState } from '../../src/testing';
+import { createInMemoryDatabase, getProjectionState } from '../../src/testing';
 import {
   cartProjection,
   counterProjection,
@@ -15,20 +15,16 @@ import {
   orderConfirmed,
   orderCancelled,
 } from '../fixtures/events';
-import { InMemoryRealtimeDb } from '../support/inMemoryRealtimeDb';
+import { createVersionedAppendMock } from '../support/versionedAppendMock';
 
 describe('Wire Realtime DB Projections Integration', () => {
   let database: Database;
   let mockEventStore: jest.Mocked<EventStore>;
 
   beforeEach(async () => {
-    database = new InMemoryRealtimeDb() as unknown as Database;
+    database = createInMemoryDatabase();
 
-    const appendToStreamMock = jest.fn().mockResolvedValue({
-      streamVersion: BigInt(1),
-      nextExpectedStreamVersion: BigInt(2),
-      createdNewStream: false,
-    });
+    const appendToStreamMock = createVersionedAppendMock();
 
     mockEventStore = {
       appendToStream: appendToStreamMock,
@@ -54,11 +50,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       await wired.appendToStream(streamId, events as any, {});
 
       // Verify original event store mock was called
-      expect(originalAppendMock).toHaveBeenCalledWith(
-        streamId,
-        events,
-        {},
-      );
+      expect(originalAppendMock).toHaveBeenCalledWith(streamId, events, {});
 
       // Verify projection was updated in database
       const state = await getProjectionState<PersistedCounterState>(
@@ -83,7 +75,9 @@ describe('Wire Realtime DB Projections Integration', () => {
       // First append
       await wired.appendToStream(
         streamId,
-        [itemAdded('item-1', 2, { position: BigInt(0), unitPrice: 100 })] as any,
+        [
+          itemAdded('item-1', 2, { position: BigInt(0), unitPrice: 100 }),
+        ] as any,
         {},
       );
 
@@ -98,7 +92,9 @@ describe('Wire Realtime DB Projections Integration', () => {
       // Second append
       await wired.appendToStream(
         streamId,
-        [itemAdded('item-2', 3, { position: BigInt(1), unitPrice: 200 })] as any,
+        [
+          itemAdded('item-2', 3, { position: BigInt(1), unitPrice: 200 }),
+        ] as any,
         {},
       );
 
@@ -120,7 +116,9 @@ describe('Wire Realtime DB Projections Integration', () => {
       });
 
       const streamId = 'multi-projection';
-      const events = [itemAdded('item-1', 5, { position: BigInt(0), unitPrice: 100 })];
+      const events = [
+        itemAdded('item-1', 5, { position: BigInt(0), unitPrice: 100 }),
+      ];
 
       await wired.appendToStream(streamId, events as any, {});
 
@@ -435,11 +433,9 @@ describe('Wire Realtime DB Projections Integration', () => {
         'test-counter',
         streamId,
       );
-      const confirmState = await getProjectionState<{ confirmedAt: string | null }>(
-        database,
-        'test-confirmation',
-        streamId,
-      );
+      const confirmState = await getProjectionState<{
+        confirmedAt: string | null;
+      }>(database, 'test-confirmation', streamId);
 
       expect(counterState).not.toBeNull();
       expect(confirmState).toBeNull(); // Not created
@@ -451,11 +447,9 @@ describe('Wire Realtime DB Projections Integration', () => {
         {},
       );
 
-      const confirmStateAfter = await getProjectionState<{ confirmedAt: string | null }>(
-        database,
-        'test-confirmation',
-        streamId,
-      );
+      const confirmStateAfter = await getProjectionState<{
+        confirmedAt: string | null;
+      }>(database, 'test-confirmation', streamId);
 
       expect(confirmStateAfter).not.toBeNull();
       expect(confirmStateAfter?.confirmedAt).toBeTruthy();

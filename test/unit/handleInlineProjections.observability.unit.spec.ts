@@ -1,7 +1,10 @@
 import type { Database, Reference } from 'firebase-admin/database';
 import { handleInlineProjections } from '../../src/projections/realtimeDBInlineProjection';
 import type { Logger } from '../../src/observability';
-import { counterProjection, confirmationProjection } from '../fixtures/projections';
+import {
+  counterProjection,
+  confirmationProjection,
+} from '../fixtures/projections';
 import { itemAdded } from '../fixtures/events';
 
 describe('handleInlineProjections - Observability', () => {

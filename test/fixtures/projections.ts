@@ -1,6 +1,9 @@
 import type { Event, ReadEvent } from '@event-driven-io/emmett';
 import { realtimeDBInlineProjection } from '../../src/projections/realtimeDBInlineProjection';
-import type { RealtimeDBReadEventMetadata, RealtimeDBReadModelMetadata } from '../../src/projections/types';
+import type {
+  RealtimeDBReadEventMetadata,
+  RealtimeDBReadModelMetadata,
+} from '../../src/projections/types';
 
 // Cart state type for testing (without metadata)
 export type CartState = {

@@ -46,14 +46,15 @@ export const createReadEvent = <T extends Event>(
   event: T,
   streamPosition: bigint = BigInt(0),
   streamName: string = 'test-stream',
-): ReadEvent<Event, RealtimeDBReadEventMetadata> => ({
-  ...event,
-  metadata: {
-    streamName,
-    streamPosition,
-    messageId: `msg-${streamPosition}`,
-  },
-} as ReadEvent<Event, RealtimeDBReadEventMetadata>);
+): ReadEvent<Event, RealtimeDBReadEventMetadata> =>
+  ({
+    ...event,
+    metadata: {
+      streamName,
+      streamPosition,
+      messageId: `msg-${streamPosition}`,
+    },
+  }) as ReadEvent<Event, RealtimeDBReadEventMetadata>;
 
 // Specific event factories - all return generic Event type
 export const itemAdded = (
@@ -71,7 +72,9 @@ export const itemAdded = (
       data: {
         itemId,
         quantity,
-        ...(options.unitPrice !== undefined && { unitPrice: options.unitPrice }),
+        ...(options.unitPrice !== undefined && {
+          unitPrice: options.unitPrice,
+        }),
       },
     } as ItemAddedEvent,
     options.position ?? BigInt(0),

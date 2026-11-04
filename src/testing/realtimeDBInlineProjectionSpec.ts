@@ -3,6 +3,7 @@ import type { Database } from 'firebase-admin/database';
 import type {
   RealtimeDBInlineProjectionDefinition,
   RealtimeDBReadEventMetadata,
+  RealtimeDBReadModel,
 } from '../projections/types';
 
 export type ProjectionTestContext = {
@@ -12,16 +13,22 @@ export type ProjectionTestContext = {
 
 export const testProjection = async <
   EventType extends Event = Event,
-  EventMetaDataType extends RealtimeDBReadEventMetadata = RealtimeDBReadEventMetadata,
+  EventMetaDataType extends RealtimeDBReadEventMetadata =
+    RealtimeDBReadEventMetadata,
 >(
-  projection: RealtimeDBInlineProjectionDefinition<EventType, EventMetaDataType>,
+  projection: RealtimeDBInlineProjectionDefinition<
+    EventType,
+    EventMetaDataType
+  >,
   events: Array<ReadEvent<EventType, EventMetaDataType>>,
   context: ProjectionTestContext,
 ): Promise<void> => {
   const { database, streamId } = context;
-  const projectionRef = database.ref(`projections/${projection.name}/${streamId}`);
+  const projectionRef = database.ref(
+    `projections/${projection.name}/${streamId}`,
+  );
   const snapshot = await projectionRef.once('value');
-  const document = snapshot.val() ?? null;
+  const document = (snapshot.val() as RealtimeDBReadModel | null) ?? null;
 
   await projection.handle(events, {
     document,
@@ -38,7 +45,9 @@ export const getProjectionState = async <T = unknown>(
 ): Promise<T | null> => {
   const ref = database.ref(`projections/${projectionName}/${streamId}`);
   const snapshot = await ref.once('value');
-  const data = snapshot.val();
+  const data = snapshot.val() as {
+    _metadata?: { streamPosition?: unknown };
+  } | null;
 
   if (!data) return null;
 

@@ -292,7 +292,9 @@ describe('handleInlineProjections', () => {
         .mockReturnValueOnce(mockRef1)
         .mockReturnValueOnce(mockRef2);
 
-      const events = [itemAdded('item-1', 2, { position: BigInt(0), unitPrice: 100 })];
+      const events = [
+        itemAdded('item-1', 2, { position: BigInt(0), unitPrice: 100 }),
+      ];
 
       await handleInlineProjections({
         events: events as any,

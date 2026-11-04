@@ -5,6 +5,7 @@ import {
   asEventStore,
 } from '@emmett-community/emmett-google-firestore';
 import { wireRealtimeDBProjections } from '@emmett-community/emmett-google-realtime-db';
+import { createInMemoryDatabase } from '@emmett-community/emmett-google-realtime-db/testing';
 import {
   ApiSpecification,
   createOpenApiValidatorOptions,
@@ -28,7 +29,6 @@ import { shoppingCartDetailsProjection } from '../src/shoppingCarts/getDetails';
 import { shoppingCartShortInfoProjection } from '../src/shoppingCarts/getShortInfo';
 import assert from 'node:assert';
 import { InMemoryFirestore } from './support/inMemoryFirestore';
-import { InMemoryRealtimeDb } from './support/inMemoryRealtimeDb';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,7 +49,7 @@ void describe('ShoppingCart integration (OpenAPI)', () => {
     clientId = randomUUID();
     shoppingCartId = `shopping_cart:${clientId}:current`;
     firestore = new InMemoryFirestore();
-    database = new InMemoryRealtimeDb() as unknown as Database;
+    database = createInMemoryDatabase();
   });
 
   void describe('When empty', () => {
@@ -85,6 +85,8 @@ void describe('ShoppingCart integration (OpenAPI)', () => {
       assert.strictEqual(details.id, shoppingCartId);
       assert.strictEqual(details.clientId, clientId);
       assert.strictEqual(details.status, 'Opened');
+      // The Realtime Database has no date type: the library stores dates as ISO 8601 UTC strings
+      assert.strictEqual(details.openedAt, now.toISOString());
       assert.strictEqual(details.productItems.length, 1);
       assert.strictEqual(details.productItems[0].productId, productItem.productId);
       assert.strictEqual(details.productItems[0].quantity, productItem.quantity);

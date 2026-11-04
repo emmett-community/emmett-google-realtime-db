@@ -6,6 +6,7 @@ import {
 } from '../../src/projections/realtimeDBInlineProjection';
 import type { RealtimeDBReadEventMetadata } from '../../src/projections/types';
 import {
+  createInMemoryDatabase,
   getProjectionState,
   clearProjection,
   clearAllProjections,
@@ -28,13 +29,70 @@ import {
   orderCancelled,
   createEventSequence,
 } from '../fixtures/events';
-import { InMemoryRealtimeDb } from '../support/inMemoryRealtimeDb';
 
 describe('Inline Projections Integration', () => {
   let database: Database;
 
   beforeEach(async () => {
-    database = new InMemoryRealtimeDb() as unknown as Database;
+    database = createInMemoryDatabase();
+  });
+
+  describe('Idempotency', () => {
+    it('applies a replayed batch only once', async () => {
+      const streamId = 'cart-replay';
+      const events = [
+        itemAdded('item-1', 1, { position: BigInt(0) }),
+        itemAdded('item-2', 1, { position: BigInt(1) }),
+      ];
+      const options = {
+        events: events as any,
+        projections: [counterProjection] as any,
+        streamId,
+        database,
+      };
+
+      await handleInlineProjections(options);
+      await handleInlineProjections(options);
+
+      const state = await getProjectionState<PersistedCounterState>(
+        database,
+        'test-counter',
+        streamId,
+      );
+      expect(state?.count).toBe(2);
+      expect(state?._metadata.streamPosition).toBe(BigInt(1));
+    });
+
+    it('applies only the new events of an overlapping batch', async () => {
+      const streamId = 'cart-overlap';
+
+      await handleInlineProjections({
+        events: [
+          itemAdded('item-1', 1, { position: BigInt(0) }),
+          itemAdded('item-2', 1, { position: BigInt(1) }),
+        ] as any,
+        projections: [counterProjection] as any,
+        streamId,
+        database,
+      });
+      await handleInlineProjections({
+        events: [
+          itemAdded('item-2', 1, { position: BigInt(1) }),
+          itemAdded('item-3', 1, { position: BigInt(2) }),
+        ] as any,
+        projections: [counterProjection] as any,
+        streamId,
+        database,
+      });
+
+      const state = await getProjectionState<PersistedCounterState>(
+        database,
+        'test-counter',
+        streamId,
+      );
+      expect(state?.count).toBe(3);
+      expect(state?._metadata.streamPosition).toBe(BigInt(2));
+    });
   });
 
   describe('Basic Persistence', () => {
