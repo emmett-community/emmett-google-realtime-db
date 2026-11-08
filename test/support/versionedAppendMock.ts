@@ -10,15 +10,18 @@ export const createVersionedAppendMock = () => {
   const versions = new Map<string, bigint>();
 
   return jest
-    .fn()
-    .mockImplementation(async (streamName: string, events: unknown[]) => {
+    .fn<
+      Promise<{ nextExpectedStreamVersion: bigint; createdNewStream: boolean }>,
+      [string, unknown[]]
+    >()
+    .mockImplementation((streamName: string, events: unknown[]) => {
       const current = versions.get(streamName) ?? BigInt(-1);
       const next = current + BigInt(events.length);
       versions.set(streamName, next);
 
-      return {
+      return Promise.resolve({
         nextExpectedStreamVersion: next,
         createdNewStream: current === BigInt(-1),
-      };
+      });
     });
 };

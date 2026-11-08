@@ -15,14 +15,14 @@ describe('High Volume Operations Integration', () => {
   let database: Database;
   let mockEventStore: jest.Mocked<EventStore>;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     database = createInMemoryDatabase();
 
     mockEventStore = {
       appendToStream: createVersionedAppendMock(),
       readStream: jest.fn(),
       aggregateStream: jest.fn(),
-    } as any;
+    } as unknown as typeof mockEventStore;
   });
 
   describe('Sequential Operations on Same Stream', () => {
@@ -42,7 +42,7 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 10; i++) {
         await wired.appendToStream(
           streamId,
-          [itemAdded(`item-${i}`, 1, { position: BigInt(i) })] as any,
+          [itemAdded(`item-${i}`, 1, { position: BigInt(i) })],
           {},
         );
       }
@@ -71,9 +71,7 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 20; i++) {
         await wired.appendToStream(
           streamId,
-          [
-            itemAdded(`item-${i}`, 1, { position: BigInt(i), unitPrice: 100 }),
-          ] as any,
+          [itemAdded(`item-${i}`, 1, { position: BigInt(i), unitPrice: 100 })],
           {},
         );
       }
@@ -102,7 +100,7 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 5; i++) {
         await wired.appendToStream(
           streamId,
-          [itemAdded(`item-${i}`, 1, { position: BigInt(i) })] as any,
+          [itemAdded(`item-${i}`, 1, { position: BigInt(i) })],
           {},
         );
       }
@@ -111,7 +109,7 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 5; i++) {
         await wired.appendToStream(
           streamId,
-          [itemRemoved(`item-${i}`, { position: BigInt(i + 5) })] as any,
+          [itemRemoved(`item-${i}`, { position: BigInt(i + 5) })],
           {},
         );
       }
@@ -139,7 +137,7 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 10; i++) {
         await wired.appendToStream(
           streamId,
-          [itemAdded(`item-${i}`, 1, { position: BigInt(i) })] as any,
+          [itemAdded(`item-${i}`, 1, { position: BigInt(i) })],
           {},
         );
       }
@@ -174,7 +172,7 @@ describe('High Volume Operations Integration', () => {
         for (let i = 0; i < 5; i++) {
           await wired.appendToStream(
             streamId,
-            [itemAdded(`item-${i}`, 1, { position: BigInt(i) })] as any,
+            [itemAdded(`item-${i}`, 1, { position: BigInt(i) })],
             {},
           );
         }
@@ -202,9 +200,7 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 10; i++) {
         await wired.appendToStream(
           'stream-isolated-1',
-          [
-            itemAdded(`item-${i}`, 2, { position: BigInt(i), unitPrice: 50 }),
-          ] as any,
+          [itemAdded(`item-${i}`, 2, { position: BigInt(i), unitPrice: 50 })],
           {},
         );
       }
@@ -213,9 +209,7 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 15; i++) {
         await wired.appendToStream(
           'stream-isolated-2',
-          [
-            itemAdded(`item-${i}`, 1, { position: BigInt(i), unitPrice: 100 }),
-          ] as any,
+          [itemAdded(`item-${i}`, 1, { position: BigInt(i), unitPrice: 100 })],
           {},
         );
       }
@@ -253,9 +247,7 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 10; i++) {
         await wired.appendToStream(
           streamId,
-          [
-            itemAdded(`item-${i}`, 3, { position: BigInt(i), unitPrice: 200 }),
-          ] as any,
+          [itemAdded(`item-${i}`, 3, { position: BigInt(i), unitPrice: 200 })],
           {},
         );
       }
@@ -281,17 +273,17 @@ describe('High Volume Operations Integration', () => {
   describe('Error Handling', () => {
     it('handles failed appends gracefully in sequential scenario', async () => {
       let callCount = 0;
-      mockEventStore.appendToStream.mockImplementation(async () => {
+      mockEventStore.appendToStream.mockImplementation(() => {
         callCount++;
         // Fail every 3rd call
         if (callCount % 3 === 0) {
-          throw new Error('Simulated append failure');
+          return Promise.reject(new Error('Simulated append failure'));
         }
-        return {
+        return Promise.resolve({
           streamVersion: BigInt(callCount),
           nextExpectedStreamVersion: BigInt(callCount + 1),
           createdNewStream: false,
-        };
+        });
       });
 
       const wired = wireRealtimeDBProjections({
@@ -307,7 +299,7 @@ describe('High Volume Operations Integration', () => {
         try {
           await wired.appendToStream(
             streamId,
-            [itemAdded(`item-${i}`, 1, { position: BigInt(i) })] as any,
+            [itemAdded(`item-${i}`, 1, { position: BigInt(i) })],
             {},
           );
         } catch {
@@ -343,7 +335,7 @@ describe('High Volume Operations Integration', () => {
       await expect(
         wired.appendToStream(
           streamId,
-          [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
+          [itemAdded('item-1', 1, { position: BigInt(0) })],
           {},
         ),
       ).rejects.toThrow('Projection error');
@@ -377,7 +369,7 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 50; i++) {
         await wired.appendToStream(
           streamId,
-          [itemAdded(`item-${i}`, 1, { position: BigInt(i) })] as any,
+          [itemAdded(`item-${i}`, 1, { position: BigInt(i) })],
           {},
         );
       }
@@ -407,9 +399,7 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 20; i++) {
         await wired.appendToStream(
           streamId,
-          [
-            itemAdded(`item-${i}`, 2, { position: BigInt(i), unitPrice: 100 }),
-          ] as any,
+          [itemAdded(`item-${i}`, 2, { position: BigInt(i), unitPrice: 100 })],
           {},
         );
       }
@@ -418,9 +408,7 @@ describe('High Volume Operations Integration', () => {
       for (let i = 0; i < 10; i++) {
         await wired.appendToStream(
           streamId,
-          [
-            itemRemoved(`item-${i}`, { position: BigInt(i + 20), quantity: 1 }),
-          ] as any,
+          [itemRemoved(`item-${i}`, { position: BigInt(i + 20), quantity: 1 })],
           {},
         );
       }

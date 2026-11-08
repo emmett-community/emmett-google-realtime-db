@@ -1,4 +1,6 @@
-import type { Database } from 'firebase-admin/database';
+import { containing } from '../support/matchers';
+import type { Database, Reference } from 'firebase-admin/database';
+import type { RealtimeDBReadModel } from '../../src/projections/types';
 import { realtimeDBInlineProjection } from '../../src/projections/realtimeDBInlineProjection';
 import {
   cartProjection,
@@ -53,12 +55,12 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          _metadata: expect.objectContaining({
+          _metadata: containing({
             schemaVersion: 1,
           }),
         }),
@@ -77,12 +79,12 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          _metadata: expect.objectContaining({
+          _metadata: containing({
             schemaVersion: 2,
           }),
         }),
@@ -103,7 +105,7 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).toHaveBeenCalledWith({
@@ -137,10 +139,10 @@ describe('realtimeDBInlineProjection', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(3) })];
 
       await counterProjection.handle(events, {
-        document: existingDocument as any,
+        document: existingDocument as unknown as RealtimeDBReadModel,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).toHaveBeenCalledWith({
@@ -170,7 +172,7 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       // 0 + 1 (first add) + 1 (second add) - 1 (remove) = 1
@@ -197,7 +199,7 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).toHaveBeenCalled();
@@ -217,10 +219,10 @@ describe('realtimeDBInlineProjection', () => {
           totalQuantity: 0,
           totalAmount: 0,
           status: 'Open',
-        } as any,
+        } as unknown as RealtimeDBReadModel,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.remove).toHaveBeenCalled();
@@ -237,7 +239,7 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).not.toHaveBeenCalled();
@@ -258,12 +260,12 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'my-custom-stream-123',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          _metadata: expect.objectContaining({
+          _metadata: containing({
             streamId: 'my-custom-stream-123',
           }),
         }),
@@ -282,12 +284,12 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          _metadata: expect.objectContaining({
+          _metadata: containing({
             name: 'test-cart',
           }),
         }),
@@ -310,12 +312,12 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          _metadata: expect.objectContaining({
+          _metadata: containing({
             streamPosition: '7', // Position of last event
           }),
         }),
@@ -334,12 +336,12 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          _metadata: expect.objectContaining({
+          _metadata: containing({
             schemaVersion: 2,
           }),
         }),
@@ -360,12 +362,12 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).toHaveBeenCalledWith({
         value: 'created',
-        _metadata: expect.objectContaining({
+        _metadata: containing({
           streamId: 'stream-1',
         }),
       });
@@ -384,12 +386,12 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          _metadata: expect.objectContaining({
+          _metadata: containing({
             streamPosition: largePosition.toString(),
           }),
         }),
@@ -415,12 +417,12 @@ describe('realtimeDBInlineProjection', () => {
         document: null,
         streamId: 'stream-1',
         database: {} as Database,
-        projectionRef: mockRef as any,
+        projectionRef: mockRef as unknown as Reference,
       });
 
       expect(mockRef.set).toHaveBeenCalledWith({
         value: 'unchanged',
-        _metadata: expect.any(Object),
+        _metadata: expect.any(Object) as unknown,
       });
     });
   });

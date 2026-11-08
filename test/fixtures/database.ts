@@ -41,7 +41,7 @@ export const getProjectionData = async <T>(
   const snapshot = await database
     .ref(`projections/${projectionName}/${streamId}`)
     .once('value');
-  return snapshot.val();
+  return snapshot.val() as T | null;
 };
 
 /**
@@ -89,7 +89,7 @@ export const getAllProjectionsOfType = async <T>(
   const snapshot = await database
     .ref(`projections/${projectionName}`)
     .once('value');
-  return snapshot.val() || {};
+  return (snapshot.val() as Record<string, T> | null) ?? {};
 };
 
 /**

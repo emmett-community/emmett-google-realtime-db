@@ -1,6 +1,8 @@
 import type { Database } from 'firebase-admin/database';
-import type { EventStore } from '@event-driven-io/emmett';
+import type { Event, EventStore, ReadEvent } from '@event-driven-io/emmett';
 import { wireRealtimeDBProjections } from '../../src/wireRealtimeDBProjections';
+import { realtimeDBInlineProjection } from '../../src/projections/realtimeDBInlineProjection';
+import type { RealtimeDBReadEventMetadata } from '../../src/projections/types';
 import { createInMemoryDatabase, getProjectionState } from '../../src/testing';
 import {
   cartProjection,
@@ -21,7 +23,7 @@ describe('Wire Realtime DB Projections Integration', () => {
   let database: Database;
   let mockEventStore: jest.Mocked<EventStore>;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     database = createInMemoryDatabase();
 
     const appendToStreamMock = createVersionedAppendMock();
@@ -30,7 +32,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       appendToStream: appendToStreamMock,
       readStream: jest.fn(),
       aggregateStream: jest.fn(),
-    } as any;
+    } as unknown as typeof mockEventStore;
   });
 
   describe('Integration with EventStore', () => {
@@ -47,7 +49,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       const streamId = 'stream-1';
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
-      await wired.appendToStream(streamId, events as any, {});
+      await wired.appendToStream(streamId, events, {});
 
       // Verify original event store mock was called
       expect(originalAppendMock).toHaveBeenCalledWith(streamId, events, {});
@@ -75,9 +77,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       // First append
       await wired.appendToStream(
         streamId,
-        [
-          itemAdded('item-1', 2, { position: BigInt(0), unitPrice: 100 }),
-        ] as any,
+        [itemAdded('item-1', 2, { position: BigInt(0), unitPrice: 100 })],
         {},
       );
 
@@ -92,9 +92,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       // Second append
       await wired.appendToStream(
         streamId,
-        [
-          itemAdded('item-2', 3, { position: BigInt(1), unitPrice: 200 }),
-        ] as any,
+        [itemAdded('item-2', 3, { position: BigInt(1), unitPrice: 200 })],
         {},
       );
 
@@ -120,7 +118,7 @@ describe('Wire Realtime DB Projections Integration', () => {
         itemAdded('item-1', 5, { position: BigInt(0), unitPrice: 100 }),
       ];
 
-      await wired.appendToStream(streamId, events as any, {});
+      await wired.appendToStream(streamId, events, {});
 
       // Check both projections were updated
       const counterState = await getProjectionState<PersistedCounterState>(
@@ -153,7 +151,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
       const options = { expectedStreamVersion: BigInt(5) };
 
-      await wired.appendToStream(streamId, events as any, options);
+      await wired.appendToStream(streamId, events, options);
 
       expect(originalAppendMock).toHaveBeenCalledWith(
         streamId,
@@ -179,11 +177,77 @@ describe('Wire Realtime DB Projections Integration', () => {
 
       const result = await wired.appendToStream(
         'stream-1',
-        [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
+        [itemAdded('item-1', 1, { position: BigInt(0) })],
         {},
       );
 
       expect(result).toEqual(expectedResult);
+    });
+  });
+
+  describe('Identity of the events', () => {
+    type TraceState = { messageIds: string[]; causationIds: string[] };
+
+    const traceProjection = realtimeDBInlineProjection<
+      TraceState,
+      Event,
+      RealtimeDBReadEventMetadata
+    >({
+      name: 'test-trace',
+      canHandle: ['ItemAdded'],
+      initialState: () => ({ messageIds: [], causationIds: [] }),
+      evolve: (
+        state: TraceState,
+        event: ReadEvent<Event, RealtimeDBReadEventMetadata>,
+      ): TraceState => {
+        const metadata = event.metadata as RealtimeDBReadEventMetadata & {
+          causationId?: string;
+        };
+        return {
+          messageIds: [...(state.messageIds ?? []), metadata.messageId],
+          causationIds: [
+            ...(state.causationIds ?? []),
+            ...(metadata.causationId ? [metadata.causationId] : []),
+          ],
+        };
+      },
+    });
+
+    it('projects with the stored messageId and the metadata given on append', async () => {
+      const versioned = createVersionedAppendMock();
+      mockEventStore.appendToStream.mockImplementation(
+        async (streamName: string, events: unknown[]) => ({
+          ...(await versioned(streamName, events)),
+          messageIds: events.map((_, index) => `stored-${index}`),
+        }),
+      );
+
+      const wired = wireRealtimeDBProjections({
+        eventStore: mockEventStore,
+        database,
+        projections: [traceProjection],
+      });
+
+      await wired.appendToStream(
+        'stream-1',
+        [
+          {
+            type: 'ItemAdded',
+            data: { itemId: 'item-1', quantity: 1 },
+            metadata: { causationId: 'message-that-caused-it' },
+          },
+          { type: 'ItemAdded', data: { itemId: 'item-2', quantity: 1 } },
+        ],
+        {},
+      );
+
+      const state = await getProjectionState<TraceState>(
+        database,
+        'test-trace',
+        'stream-1',
+      );
+      expect(state?.messageIds).toEqual(['stored-0', 'stored-1']);
+      expect(state?.causationIds).toEqual(['message-that-caused-it']);
     });
   });
 
@@ -198,14 +262,14 @@ describe('Wire Realtime DB Projections Integration', () => {
       // Append to stream 1
       await wired.appendToStream(
         'stream-1',
-        [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
+        [itemAdded('item-1', 1, { position: BigInt(0) })],
         {},
       );
 
       // Append to stream 2
       await wired.appendToStream(
         'stream-2',
-        [itemAdded('item-2', 1, { position: BigInt(0) })] as any,
+        [itemAdded('item-2', 1, { position: BigInt(0) })],
         {},
       );
 
@@ -241,14 +305,14 @@ describe('Wire Realtime DB Projections Integration', () => {
           itemAdded('item-1', 1, { position: BigInt(0) }),
           itemAdded('item-2', 1, { position: BigInt(1) }),
           itemAdded('item-3', 1, { position: BigInt(2) }),
-        ] as any,
+        ],
         {},
       );
 
       // Add 1 event to stream-2
       await wired.appendToStream(
         'stream-2',
-        [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
+        [itemAdded('item-1', 1, { position: BigInt(0) })],
         {},
       );
 
@@ -277,19 +341,19 @@ describe('Wire Realtime DB Projections Integration', () => {
       // Create projections in both streams
       await wired.appendToStream(
         'stream-1',
-        [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
+        [itemAdded('item-1', 1, { position: BigInt(0) })],
         {},
       );
       await wired.appendToStream(
         'stream-2',
-        [itemAdded('item-2', 1, { position: BigInt(0) })] as any,
+        [itemAdded('item-2', 1, { position: BigInt(0) })],
         {},
       );
 
       // Cancel order in stream-1 (deletes projection)
       await wired.appendToStream(
         'stream-1',
-        [orderCancelled('order-1', { position: BigInt(1) })] as any,
+        [orderCancelled('order-1', { position: BigInt(1) })],
         {},
       );
 
@@ -313,19 +377,20 @@ describe('Wire Realtime DB Projections Integration', () => {
     it('calls original appendToStream before updating projections', async () => {
       const callOrder: string[] = [];
 
-      mockEventStore.appendToStream.mockImplementation(async () => {
+      mockEventStore.appendToStream.mockImplementation(() => {
         callOrder.push('append');
-        return {
+        return Promise.resolve({
           streamVersion: BigInt(1),
           nextExpectedStreamVersion: BigInt(2),
           createdNewStream: false,
-        };
+        });
       });
 
       const testProjection = {
         ...counterProjection,
-        handle: jest.fn().mockImplementation(async () => {
+        handle: jest.fn().mockImplementation(() => {
           callOrder.push('projection');
+          return Promise.resolve();
         }),
       };
 
@@ -337,7 +402,7 @@ describe('Wire Realtime DB Projections Integration', () => {
 
       await wired.appendToStream(
         'stream-1',
-        [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
+        [itemAdded('item-1', 1, { position: BigInt(0) })],
         {},
       );
 
@@ -358,7 +423,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       await expect(
         wired.appendToStream(
           'stream-1',
-          [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
+          [itemAdded('item-1', 1, { position: BigInt(0) })],
           {},
         ),
       ).rejects.toThrow('Append failed');
@@ -390,7 +455,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       await expect(
         wired.appendToStream(
           'stream-1',
-          [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
+          [itemAdded('item-1', 1, { position: BigInt(0) })],
           {},
         ),
       ).rejects.toThrow('Projection failed');
@@ -424,7 +489,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       // ItemAdded event - only counterProjection should handle
       await wired.appendToStream(
         streamId,
-        [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
+        [itemAdded('item-1', 1, { position: BigInt(0) })],
         {},
       );
 
@@ -443,7 +508,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       // OrderConfirmed event - only confirmationProjection should handle
       await wired.appendToStream(
         streamId,
-        [orderConfirmed('order-1', { position: BigInt(1) })] as any,
+        [orderConfirmed('order-1', { position: BigInt(1) })],
         {},
       );
 
@@ -467,7 +532,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       // OrderConfirmed is not in counterProjection.canHandle
       await wired.appendToStream(
         streamId,
-        [orderConfirmed('order-1', { position: BigInt(0) })] as any,
+        [orderConfirmed('order-1', { position: BigInt(0) })],
         {},
       );
 
@@ -497,7 +562,7 @@ describe('Wire Realtime DB Projections Integration', () => {
         [
           itemAdded('item-1', 2, { position: BigInt(0), unitPrice: 100 }),
           itemAdded('item-2', 1, { position: BigInt(1), unitPrice: 200 }),
-        ] as any,
+        ],
         {},
       );
 
@@ -513,7 +578,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       // 2. Remove item
       await wired.appendToStream(
         streamId,
-        [itemRemoved('item-1', { position: BigInt(2), quantity: 1 })] as any,
+        [itemRemoved('item-1', { position: BigInt(2), quantity: 1 })],
         {},
       );
 
@@ -528,7 +593,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       // 3. Confirm order
       await wired.appendToStream(
         streamId,
-        [orderConfirmed('order-1', { position: BigInt(3) })] as any,
+        [orderConfirmed('order-1', { position: BigInt(3) })],
         {},
       );
 
@@ -543,7 +608,7 @@ describe('Wire Realtime DB Projections Integration', () => {
       // 4. Cancel order (deletes projection)
       await wired.appendToStream(
         streamId,
-        [orderCancelled('order-1', { position: BigInt(4) })] as any,
+        [orderCancelled('order-1', { position: BigInt(4) })],
         {},
       );
 
@@ -558,22 +623,24 @@ describe('Wire Realtime DB Projections Integration', () => {
     it('handles multiple sequential appends with state accumulation', async () => {
       // Create a mock that returns incrementing versions
       let currentVersion = BigInt(-1);
-      const incrementingMock = jest.fn().mockImplementation((_, events) => {
-        const eventsLength = events.length;
-        const newVersion = currentVersion + BigInt(eventsLength);
-        const result = {
-          nextExpectedStreamVersion: newVersion,
-          createdNewStream: currentVersion === BigInt(-1),
-        };
-        currentVersion = newVersion;
-        return Promise.resolve(result);
-      });
+      const incrementingMock = jest
+        .fn()
+        .mockImplementation((_: string, events: unknown[]) => {
+          const eventsLength = events.length;
+          const newVersion = currentVersion + BigInt(eventsLength);
+          const result = {
+            nextExpectedStreamVersion: newVersion,
+            createdNewStream: currentVersion === BigInt(-1),
+          };
+          currentVersion = newVersion;
+          return Promise.resolve(result);
+        });
 
       const customMockEventStore = {
         appendToStream: incrementingMock,
         readStream: jest.fn(),
         aggregateStream: jest.fn(),
-      } as any;
+      };
 
       const wired = wireRealtimeDBProjections({
         eventStore: customMockEventStore,
@@ -592,7 +659,7 @@ describe('Wire Realtime DB Projections Integration', () => {
               type: 'ItemAdded',
               data: { itemId: `item-${i}`, quantity: 1 },
             },
-          ] as any,
+          ],
           {},
         );
       }
@@ -624,7 +691,7 @@ describe('Wire Realtime DB Projections Integration', () => {
           itemRemoved('item-1', { position: BigInt(2) }),
           itemAdded('item-3', 1, { position: BigInt(3) }),
           itemRemoved('item-2', { position: BigInt(4) }),
-        ] as any,
+        ],
         {},
       );
 

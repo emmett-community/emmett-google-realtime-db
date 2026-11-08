@@ -14,7 +14,7 @@ describe('wireRealtimeDBProjections - Observability', () => {
       appendToStream: jest.fn().mockResolvedValue({
         nextExpectedStreamVersion: BigInt(1),
       }),
-    } as any;
+    } as unknown as typeof mockEventStore;
 
     mockDatabase = {
       ref: jest.fn().mockReturnValue({
@@ -22,7 +22,7 @@ describe('wireRealtimeDBProjections - Observability', () => {
         set: jest.fn().mockResolvedValue(undefined),
         remove: jest.fn().mockResolvedValue(undefined),
       }),
-    } as any;
+    } as unknown as typeof mockDatabase;
   });
 
   describe('without observability options', () => {

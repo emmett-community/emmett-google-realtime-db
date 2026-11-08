@@ -27,11 +27,11 @@ describe('handleInlineProjections', () => {
       set: jest.fn().mockResolvedValue(undefined),
       remove: jest.fn().mockResolvedValue(undefined),
       once: jest.fn().mockResolvedValue(mockSnapshot),
-    } as any;
+    } as unknown as typeof mockProjectionRef;
 
     mockDatabase = {
       ref: jest.fn().mockReturnValue(mockProjectionRef),
-    } as any;
+    } as unknown as typeof mockDatabase;
   });
 
   describe('Projection filtering', () => {
@@ -40,8 +40,8 @@ describe('handleInlineProjections', () => {
       const projections = [counterProjection, confirmationProjection];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: projections as any,
+        events: events,
+        projections: projections,
         streamId: 'stream-1',
         database: mockDatabase,
       });
@@ -54,8 +54,8 @@ describe('handleInlineProjections', () => {
       const projections = [counterProjection];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: projections as any,
+        events: events,
+        projections: projections,
         streamId: 'stream-1',
         database: mockDatabase,
       });
@@ -84,8 +84,8 @@ describe('handleInlineProjections', () => {
       const projections = [counterProjection, cartProjection];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: projections as any,
+        events: events,
+        projections: projections,
         streamId: 'stream-1',
         database: mockDatabase,
       });
@@ -108,8 +108,8 @@ describe('handleInlineProjections', () => {
       };
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [spyProjection] as any,
+        events: events,
+        projections: [spyProjection],
         streamId: 'stream-1',
         database: mockDatabase,
       });
@@ -136,8 +136,8 @@ describe('handleInlineProjections', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(3) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId: 'stream-1',
         database: mockDatabase,
       });
@@ -155,8 +155,8 @@ describe('handleInlineProjections', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId: 'stream-1',
         database: mockDatabase,
       });
@@ -198,8 +198,8 @@ describe('handleInlineProjections', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [projection1, projection2] as any,
+        events: events,
+        projections: [projection1, projection2],
         streamId: 'stream-1',
         database: mockDatabase,
       });
@@ -223,8 +223,8 @@ describe('handleInlineProjections', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId: 'my-stream-123',
         database: mockDatabase,
       });
@@ -242,32 +242,35 @@ describe('handleInlineProjections', () => {
       const projection1: RealtimeDBInlineProjectionDefinition = {
         name: 'first',
         canHandle: ['ItemAdded'],
-        handle: async () => {
+        handle: () => {
           callOrder.push('first');
+          return Promise.resolve();
         },
       };
 
       const projection2: RealtimeDBInlineProjectionDefinition = {
         name: 'second',
         canHandle: ['ItemAdded'],
-        handle: async () => {
+        handle: () => {
           callOrder.push('second');
+          return Promise.resolve();
         },
       };
 
       const projection3: RealtimeDBInlineProjectionDefinition = {
         name: 'third',
         canHandle: ['ItemAdded'],
-        handle: async () => {
+        handle: () => {
           callOrder.push('third');
+          return Promise.resolve();
         },
       };
 
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [projection1, projection2, projection3] as any,
+        events: events,
+        projections: [projection1, projection2, projection3],
         streamId: 'stream-1',
         database: mockDatabase,
       });
@@ -297,8 +300,8 @@ describe('handleInlineProjections', () => {
       ];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection, cartProjection] as any,
+        events: events,
+        projections: [counterProjection, cartProjection],
         streamId: 'stream-1',
         database: mockDatabase,
       });
@@ -309,7 +312,7 @@ describe('handleInlineProjections', () => {
 
       expect(mockRef2.set).toHaveBeenCalledWith(
         expect.objectContaining({
-          items: expect.any(Array),
+          items: expect.any(Array) as unknown,
           totalQuantity: 2,
         }),
       );
@@ -321,9 +324,7 @@ describe('handleInlineProjections', () => {
       const failingProjection: RealtimeDBInlineProjectionDefinition = {
         name: 'failing',
         canHandle: ['ItemAdded'],
-        handle: async () => {
-          throw new Error('Projection failed');
-        },
+        handle: () => Promise.reject(new Error('Projection failed')),
       };
 
       const successProjection: RealtimeDBInlineProjectionDefinition = {
@@ -336,8 +337,8 @@ describe('handleInlineProjections', () => {
 
       await expect(
         handleInlineProjections({
-          events: events as any,
-          projections: [failingProjection, successProjection] as any,
+          events: events,
+          projections: [failingProjection, successProjection],
           streamId: 'stream-1',
           database: mockDatabase,
         }),
@@ -352,8 +353,8 @@ describe('handleInlineProjections', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [] as any,
+        events: events,
+        projections: [],
         streamId: 'stream-1',
         database: mockDatabase,
       });
@@ -363,8 +364,8 @@ describe('handleInlineProjections', () => {
 
     it('does nothing when events array is empty', async () => {
       await handleInlineProjections({
-        events: [] as any,
-        projections: [counterProjection] as any,
+        events: [],
+        projections: [counterProjection],
         streamId: 'stream-1',
         database: mockDatabase,
       });

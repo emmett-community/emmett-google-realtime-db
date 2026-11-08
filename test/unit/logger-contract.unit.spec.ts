@@ -23,7 +23,7 @@ describe('Logger Contract', () => {
       appendToStream: jest.fn().mockResolvedValue({
         nextExpectedStreamVersion: BigInt(1),
       }),
-    } as any;
+    } as unknown as typeof mockEventStore;
 
     mockDatabase = {
       ref: jest.fn().mockReturnValue({
@@ -31,7 +31,7 @@ describe('Logger Contract', () => {
         set: jest.fn().mockResolvedValue(undefined),
         remove: jest.fn().mockResolvedValue(undefined),
       }),
-    } as any;
+    } as unknown as typeof mockDatabase;
   });
 
   describe('Contract Format Validation', () => {

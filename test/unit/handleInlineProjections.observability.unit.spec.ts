@@ -22,11 +22,11 @@ describe('handleInlineProjections - Observability', () => {
       set: jest.fn().mockResolvedValue(undefined),
       remove: jest.fn().mockResolvedValue(undefined),
       once: jest.fn().mockResolvedValue(mockSnapshot),
-    } as any;
+    } as unknown as typeof mockProjectionRef;
 
     mockDatabase = {
       ref: jest.fn().mockReturnValue(mockProjectionRef),
-    } as any;
+    } as unknown as typeof mockDatabase;
   });
 
   describe('without observability options', () => {
@@ -35,8 +35,8 @@ describe('handleInlineProjections - Observability', () => {
 
       await expect(
         handleInlineProjections({
-          events: events as any,
-          projections: [counterProjection] as any,
+          events: events,
+          projections: [counterProjection],
           streamId: 'stream-1',
           database: mockDatabase,
         }),
@@ -48,8 +48,8 @@ describe('handleInlineProjections - Observability', () => {
 
       await expect(
         handleInlineProjections({
-          events: events as any,
-          projections: [counterProjection] as any,
+          events: events,
+          projections: [counterProjection],
           streamId: 'stream-1',
           database: mockDatabase,
           observability: {},
@@ -71,8 +71,8 @@ describe('handleInlineProjections - Observability', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId: 'stream-1',
         database: mockDatabase,
         observability: { logger },
@@ -83,7 +83,7 @@ describe('handleInlineProjections - Observability', () => {
         expect.objectContaining({
           streamId: 'stream-1',
           eventCount: 1,
-          projectionNames: expect.any(Array),
+          projectionNames: expect.any(Array) as unknown,
         }),
         'Handling inline projections',
       );
@@ -101,8 +101,8 @@ describe('handleInlineProjections - Observability', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection, confirmationProjection] as any,
+        events: events,
+        projections: [counterProjection, confirmationProjection],
         streamId: 'stream-1',
         database: mockDatabase,
         observability: { logger },
@@ -129,8 +129,8 @@ describe('handleInlineProjections - Observability', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId: 'stream-1',
         database: mockDatabase,
         observability: { logger },
@@ -139,7 +139,7 @@ describe('handleInlineProjections - Observability', () => {
       // Canonical format: (context, message)
       expect(debugFn).toHaveBeenCalledWith(
         expect.objectContaining({
-          projectionName: expect.any(String),
+          projectionName: expect.any(String) as unknown,
           documentFound: false,
         }),
         'Read document',
@@ -160,8 +160,8 @@ describe('handleInlineProjections - Observability', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId: 'stream-1',
         database: mockDatabase,
         observability: { logger },
@@ -188,8 +188,8 @@ describe('handleInlineProjections - Observability', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId: 'stream-1',
         database: mockDatabase,
         observability: { logger },
@@ -221,8 +221,8 @@ describe('handleInlineProjections - Observability', () => {
 
       await expect(
         handleInlineProjections({
-          events: events as any,
-          projections: [counterProjection] as any,
+          events: events,
+          projections: [counterProjection],
           streamId: 'stream-1',
           database: mockDatabase,
           observability: { logger },
@@ -249,8 +249,8 @@ describe('handleInlineProjections - Observability', () => {
 
       await expect(
         handleInlineProjections({
-          events: events as any,
-          projections: [counterProjection] as any,
+          events: events,
+          projections: [counterProjection],
           streamId: 'stream-1',
           database: mockDatabase,
           observability: { logger },
@@ -273,8 +273,8 @@ describe('handleInlineProjections - Observability', () => {
         const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
         await handleInlineProjections({
-          events: events as any,
-          projections: [counterProjection] as any,
+          events: events,
+          projections: [counterProjection],
           streamId: 'stream-1',
           database: mockDatabase,
         });

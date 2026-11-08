@@ -84,7 +84,7 @@ describe('Types and constants', () => {
       };
 
       const serialized = JSON.stringify(data);
-      const parsed = JSON.parse(serialized);
+      const parsed = JSON.parse(serialized) as Record<string, unknown>;
 
       // BigInt is serialized as string via toJSON()
       expect(parsed.position).toBe('123');
@@ -99,7 +99,7 @@ describe('Types and constants', () => {
       };
 
       const serialized = JSON.stringify(data);
-      const parsed = JSON.parse(serialized);
+      const parsed = JSON.parse(serialized) as Record<string, unknown>;
 
       expect(parsed.value).toBe('9007199254740992');
     });
@@ -113,7 +113,9 @@ describe('Types and constants', () => {
       };
 
       const serialized = JSON.stringify(data);
-      const parsed = JSON.parse(serialized);
+      const parsed = JSON.parse(serialized) as {
+        metadata: Record<string, unknown>;
+      };
 
       expect(parsed.metadata.streamPosition).toBe('100');
       expect(parsed.metadata.schemaVersion).toBe(1);

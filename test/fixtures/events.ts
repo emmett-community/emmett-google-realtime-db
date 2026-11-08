@@ -171,7 +171,9 @@ export const createEventSequence = (
           reason: event.reason,
         });
       default:
-        throw new Error(`Unknown event type: ${event.type}`);
+        throw new Error(
+          `Unknown event type: ${String((event as { type: string }).type)}`,
+        );
     }
   });
 };
