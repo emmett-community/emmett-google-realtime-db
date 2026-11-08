@@ -257,7 +257,7 @@ describe('Observability - safeLog', () => {
 
       safeLog.debug(logger, 'message', originalData);
 
-      const passedContext = debugFn.mock.calls[0][0];
+      const passedContext = (debugFn.mock.calls as unknown[][])[0][0];
       expect(passedContext).toEqual(originalData);
       expect(passedContext).not.toBe(originalData); // Different object reference
     });

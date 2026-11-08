@@ -33,7 +33,7 @@ import {
 describe('Inline Projections Integration', () => {
   let database: Database;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     database = createInMemoryDatabase();
   });
 
@@ -45,8 +45,8 @@ describe('Inline Projections Integration', () => {
         itemAdded('item-2', 1, { position: BigInt(1) }),
       ];
       const options = {
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId,
         database,
       };
@@ -70,8 +70,8 @@ describe('Inline Projections Integration', () => {
         events: [
           itemAdded('item-1', 1, { position: BigInt(0) }),
           itemAdded('item-2', 1, { position: BigInt(1) }),
-        ] as any,
-        projections: [counterProjection] as any,
+        ],
+        projections: [counterProjection],
         streamId,
         database,
       });
@@ -79,8 +79,8 @@ describe('Inline Projections Integration', () => {
         events: [
           itemAdded('item-2', 1, { position: BigInt(1) }),
           itemAdded('item-3', 1, { position: BigInt(2) }),
-        ] as any,
-        projections: [counterProjection] as any,
+        ],
+        projections: [counterProjection],
         streamId,
         database,
       });
@@ -101,8 +101,8 @@ describe('Inline Projections Integration', () => {
       const events = [itemAdded('item-1', 2, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [cartProjection] as any,
+        events: events,
+        projections: [cartProjection],
         streamId,
         database,
       });
@@ -113,7 +113,7 @@ describe('Inline Projections Integration', () => {
         .once('value');
 
       expect(snapshot.exists()).toBe(true);
-      const data = snapshot.val();
+      const data = snapshot.val() as unknown;
       expect(data).toHaveProperty('items');
       expect(data).toHaveProperty('_metadata');
     });
@@ -123,8 +123,8 @@ describe('Inline Projections Integration', () => {
 
       // First append
       await handleInlineProjections({
-        events: [itemAdded('item-1', 2, { position: BigInt(0) })] as any,
-        projections: [cartProjection] as any,
+        events: [itemAdded('item-1', 2, { position: BigInt(0) })],
+        projections: [cartProjection],
         streamId,
         database,
       });
@@ -139,8 +139,8 @@ describe('Inline Projections Integration', () => {
 
       // Second append
       await handleInlineProjections({
-        events: [itemAdded('item-2', 3, { position: BigInt(1) })] as any,
-        projections: [cartProjection] as any,
+        events: [itemAdded('item-2', 3, { position: BigInt(1) })],
+        projections: [cartProjection],
         streamId,
         database,
       });
@@ -160,8 +160,8 @@ describe('Inline Projections Integration', () => {
 
       // Create projection first
       await handleInlineProjections({
-        events: [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
-        projections: [cartProjection] as any,
+        events: [itemAdded('item-1', 1, { position: BigInt(0) })],
+        projections: [cartProjection],
         streamId,
         database,
       });
@@ -175,8 +175,8 @@ describe('Inline Projections Integration', () => {
 
       // Cancel order (triggers deletion)
       await handleInlineProjections({
-        events: [orderCancelled('order-1', { position: BigInt(1) })] as any,
-        projections: [cartProjection] as any,
+        events: [orderCancelled('order-1', { position: BigInt(1) })],
+        projections: [cartProjection],
         streamId,
         database,
       });
@@ -194,8 +194,8 @@ describe('Inline Projections Integration', () => {
       const events = [itemAdded('item-1', 5, { position: BigInt(42) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId,
         database,
       });
@@ -225,8 +225,8 @@ describe('Inline Projections Integration', () => {
       ];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [cartProjection] as any,
+        events: events,
+        projections: [cartProjection],
         streamId,
         database,
       });
@@ -261,8 +261,8 @@ describe('Inline Projections Integration', () => {
       ];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId,
         database,
       });
@@ -287,8 +287,8 @@ describe('Inline Projections Integration', () => {
       ]);
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [cartProjection] as any,
+        events: events,
+        projections: [cartProjection],
         streamId,
         database,
       });
@@ -315,8 +315,8 @@ describe('Inline Projections Integration', () => {
       const events = [itemAdded('item-1', 5, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection, cartProjection] as any,
+        events: events,
+        projections: [counterProjection, cartProjection],
         streamId,
         database,
       });
@@ -343,8 +343,8 @@ describe('Inline Projections Integration', () => {
       const events = [orderConfirmed('order-1', { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [cartProjection, confirmationProjection] as any,
+        events: events,
+        projections: [cartProjection, confirmationProjection],
         streamId,
         database,
       });
@@ -360,8 +360,10 @@ describe('Inline Projections Integration', () => {
       expect(cartSnapshot.exists()).toBe(true);
       expect(confirmSnapshot.exists()).toBe(true);
 
-      const cartData = cartSnapshot.val();
-      const confirmData = confirmSnapshot.val();
+      const cartData = cartSnapshot.val() as { status: string };
+      const confirmData = confirmSnapshot.val() as {
+        confirmedAt: string | null;
+      };
 
       expect(cartData.status).toBe('Confirmed');
       expect(confirmData.confirmedAt).toBeTruthy();
@@ -372,16 +374,16 @@ describe('Inline Projections Integration', () => {
 
       // Create both projections
       await handleInlineProjections({
-        events: [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
-        projections: [cartProjection, counterProjection] as any,
+        events: [itemAdded('item-1', 1, { position: BigInt(0) })],
+        projections: [cartProjection, counterProjection],
         streamId,
         database,
       });
 
       // Delete cart projection (via OrderCancelled)
       await handleInlineProjections({
-        events: [orderCancelled('order-1', { position: BigInt(1) })] as any,
-        projections: [cartProjection, counterProjection] as any,
+        events: [orderCancelled('order-1', { position: BigInt(1) })],
+        projections: [cartProjection, counterProjection],
         streamId,
         database,
       });
@@ -409,8 +411,8 @@ describe('Inline Projections Integration', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId,
         database,
       });
@@ -447,8 +449,8 @@ describe('Inline Projections Integration', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [customProjection] as any,
+        events: events,
+        projections: [customProjection],
         streamId,
         database,
       });
@@ -470,8 +472,8 @@ describe('Inline Projections Integration', () => {
       );
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [cartProjection] as any,
+        events: events,
+        projections: [cartProjection],
         streamId,
         database,
       });
@@ -492,8 +494,8 @@ describe('Inline Projections Integration', () => {
       const events = [itemAdded('item-1', 1, { position: largePosition })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId,
         database,
       });
@@ -513,8 +515,8 @@ describe('Inline Projections Integration', () => {
 
       // First event creates document
       await handleInlineProjections({
-        events: [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
-        projections: [nullableProjection] as any,
+        events: [itemAdded('item-1', 1, { position: BigInt(0) })],
+        projections: [nullableProjection],
         streamId,
         database,
       });
@@ -528,8 +530,8 @@ describe('Inline Projections Integration', () => {
 
       // Second event deletes document
       await handleInlineProjections({
-        events: [itemRemoved('item-1', { position: BigInt(1) })] as any,
-        projections: [nullableProjection] as any,
+        events: [itemRemoved('item-1', { position: BigInt(1) })],
+        projections: [nullableProjection],
         streamId,
         database,
       });
@@ -551,8 +553,8 @@ describe('Inline Projections Integration', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [versionedProjection] as any,
+        events: events,
+        projections: [versionedProjection],
         streamId,
         database,
       });
@@ -574,8 +576,8 @@ describe('Inline Projections Integration', () => {
       const events = [itemAdded('item-1', 10, { position: BigInt(0) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId,
         database,
       });
@@ -606,8 +608,8 @@ describe('Inline Projections Integration', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(99) })];
 
       await handleInlineProjections({
-        events: events as any,
-        projections: [cartProjection] as any,
+        events: events,
+        projections: [cartProjection],
         streamId,
         database,
       });
@@ -634,8 +636,8 @@ describe('Inline Projections Integration', () => {
 
       // Create projection
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection] as any,
+        events: events,
+        projections: [counterProjection],
         streamId,
         database,
       });
@@ -664,8 +666,8 @@ describe('Inline Projections Integration', () => {
 
       // Create multiple projections
       await handleInlineProjections({
-        events: events as any,
-        projections: [counterProjection, cartProjection] as any,
+        events: events,
+        projections: [counterProjection, cartProjection],
         streamId,
         database,
       });

@@ -102,6 +102,14 @@ Every document stores the stream position of the last event it applied in `_meta
 
 This assumes that events of a stream arrive in position order. A projection that deleted its document (its `evolve` returned `null`) has no stored position, so a replay of the older events would apply them again; make `evolve` ignore events for a missing document when that matters (the shopping cart example does this).
 
+### Event Metadata Seen by a Projection
+
+`wireRealtimeDBProjections` hands each appended event to the projections with this metadata:
+
+- The metadata given on append, as it was given (for example a `causationId`).
+- `streamName` and `streamPosition`, derived from the append result. They take precedence over fields with the same name given on append.
+- `messageId`: the id stored by the event store, when its append result has `messageIds` with one id per event, in the order of the events. Otherwise a derived `<streamName>-<streamPosition>`. This way a projection sees the same identity as the event store gave the event.
+
 ### Dates
 
 The Realtime Database has no date type. It stores a `Date` as an object without children, which means the field **silently disappears**. To keep dates, the library writes every `Date` and Firestore `Timestamp` found in a document as an **ISO 8601 UTC string** (`2026-10-24T12:30:00.000Z`), at any depth. Your `evolve` can keep working with `Date` values; what you read back from the database is a string, so type the persisted read model with `string` (or convert it when you read it).

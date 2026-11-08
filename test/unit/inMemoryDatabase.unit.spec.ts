@@ -6,7 +6,7 @@ import {
 const read = async (
   database: ReturnType<typeof createInMemoryDatabase>,
   path?: string,
-) => (await database.ref(path).once('value')).val();
+) => (await database.ref(path).once('value')).val() as unknown;
 
 describe('In-memory Realtime Database', () => {
   let database: ReturnType<typeof createInMemoryDatabase>;
@@ -150,7 +150,7 @@ describe('In-memory Realtime Database', () => {
       expect(() => database.ref('u').update({ a: undefined })).toThrow(
         'undefined',
       );
-      expect(() => database.ref('u').update([] as any)).toThrow();
+      expect(() => database.ref('u').update([])).toThrow();
       expect(() => database.ref('u').update({ '': 1 })).toThrow();
     });
 
@@ -170,12 +170,11 @@ describe('In-memory Realtime Database', () => {
       expect(pushed.key).toHaveLength(20);
       expect(reference.key).toBe(pushed.key);
       expect(await read(database, 'list')).toEqual({
-        [pushed.key as string]: { n: 1 },
+        [String(pushed.key)]: { n: 1 },
       });
 
-      const keys = Array.from(
-        { length: 50 },
-        () => database.ref('list').push().key as string,
+      const keys = Array.from({ length: 50 }, () =>
+        String(database.ref('list').push().key),
       );
       expect([...keys].sort()).toEqual(keys);
       expect(new Set(keys).size).toBe(50);

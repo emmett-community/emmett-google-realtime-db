@@ -24,7 +24,7 @@ import {
 describe('Projection State Integration', () => {
   let database: Database;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     database = createInMemoryDatabase();
   });
 
@@ -37,7 +37,7 @@ describe('Projection State Integration', () => {
           itemAdded('item-2', 3, { position: BigInt(1) }),
         ];
 
-        await testProjection(cartProjection, events as any, {
+        await testProjection(cartProjection, events, {
           streamId,
           database,
         });
@@ -60,7 +60,7 @@ describe('Projection State Integration', () => {
           orderCancelled('order-1', { position: BigInt(1) }),
         ];
 
-        await testProjection(cartProjection, events as any, {
+        await testProjection(cartProjection, events, {
           streamId,
           database,
         });
@@ -78,7 +78,7 @@ describe('Projection State Integration', () => {
         const streamId = 'persisted-stream';
         const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
-        await testProjection(counterProjection, events as any, {
+        await testProjection(counterProjection, events, {
           streamId,
           database,
         });
@@ -100,14 +100,14 @@ describe('Projection State Integration', () => {
         // Create initial state
         await testProjection(
           counterProjection,
-          [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
+          [itemAdded('item-1', 1, { position: BigInt(0) })],
           { streamId, database },
         );
 
         // Apply more events to existing state
         await testProjection(
           counterProjection,
-          [itemAdded('item-2', 1, { position: BigInt(1) })] as any,
+          [itemAdded('item-2', 1, { position: BigInt(1) })],
           { streamId, database },
         );
 
@@ -129,8 +129,8 @@ describe('Projection State Integration', () => {
         ];
 
         await handleInlineProjections({
-          events: events as any,
-          projections: [cartProjection] as any,
+          events: events,
+          projections: [cartProjection],
           streamId,
           database,
         });
@@ -162,16 +162,16 @@ describe('Projection State Integration', () => {
 
         // Create projection
         await handleInlineProjections({
-          events: [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
-          projections: [cartProjection] as any,
+          events: [itemAdded('item-1', 1, { position: BigInt(0) })],
+          projections: [cartProjection],
           streamId,
           database,
         });
 
         // Delete it
         await handleInlineProjections({
-          events: [orderCancelled('order-1', { position: BigInt(1) })] as any,
-          projections: [cartProjection] as any,
+          events: [orderCancelled('order-1', { position: BigInt(1) })],
+          projections: [cartProjection],
           streamId,
           database,
         });
@@ -188,8 +188,8 @@ describe('Projection State Integration', () => {
       it('includes metadata in result', async () => {
         const streamId = 'metadata-test';
         await handleInlineProjections({
-          events: [itemAdded('item-1', 1, { position: BigInt(42) })] as any,
-          projections: [counterProjection] as any,
+          events: [itemAdded('item-1', 1, { position: BigInt(42) })],
+          projections: [counterProjection],
           streamId,
           database,
         });
@@ -213,8 +213,8 @@ describe('Projection State Integration', () => {
       it('clears specific projection', async () => {
         const streamId = 'clear-specific';
         await handleInlineProjections({
-          events: [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
-          projections: [counterProjection] as any,
+          events: [itemAdded('item-1', 1, { position: BigInt(0) })],
+          projections: [counterProjection],
           streamId,
           database,
         });
@@ -239,8 +239,8 @@ describe('Projection State Integration', () => {
       it('does not affect other projections in same stream', async () => {
         const streamId = 'multi-clear';
         await handleInlineProjections({
-          events: [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
-          projections: [counterProjection, cartProjection] as any,
+          events: [itemAdded('item-1', 1, { position: BigInt(0) })],
+          projections: [counterProjection, cartProjection],
           streamId,
           database,
         });
@@ -266,15 +266,15 @@ describe('Projection State Integration', () => {
       it('does not affect same projection in other streams', async () => {
         // Create projections in two streams
         await handleInlineProjections({
-          events: [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
-          projections: [counterProjection] as any,
+          events: [itemAdded('item-1', 1, { position: BigInt(0) })],
+          projections: [counterProjection],
           streamId: 'stream-1',
           database,
         });
 
         await handleInlineProjections({
-          events: [itemAdded('item-2', 1, { position: BigInt(0) })] as any,
-          projections: [counterProjection] as any,
+          events: [itemAdded('item-2', 1, { position: BigInt(0) })],
+          projections: [counterProjection],
           streamId: 'stream-2',
           database,
         });
@@ -304,19 +304,19 @@ describe('Projection State Integration', () => {
 
         // Create multiple projections
         await handleInlineProjections({
-          events: [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
+          events: [itemAdded('item-1', 1, { position: BigInt(0) })],
           projections: [
             counterProjection,
             cartProjection,
             confirmationProjection,
-          ] as any,
+          ],
           streamId,
           database,
         });
 
         await handleInlineProjections({
-          events: [orderConfirmed('order-1', { position: BigInt(1) })] as any,
-          projections: [confirmationProjection] as any,
+          events: [orderConfirmed('order-1', { position: BigInt(1) })],
+          projections: [confirmationProjection],
           streamId,
           database,
         });
@@ -361,22 +361,22 @@ describe('Projection State Integration', () => {
       it('clears projections across multiple streams', async () => {
         // Create projections in different streams
         await handleInlineProjections({
-          events: [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
-          projections: [counterProjection] as any,
+          events: [itemAdded('item-1', 1, { position: BigInt(0) })],
+          projections: [counterProjection],
           streamId: 'stream-1',
           database,
         });
 
         await handleInlineProjections({
-          events: [itemAdded('item-2', 1, { position: BigInt(0) })] as any,
-          projections: [counterProjection] as any,
+          events: [itemAdded('item-2', 1, { position: BigInt(0) })],
+          projections: [counterProjection],
           streamId: 'stream-2',
           database,
         });
 
         await handleInlineProjections({
-          events: [itemAdded('item-3', 1, { position: BigInt(0) })] as any,
-          projections: [cartProjection] as any,
+          events: [itemAdded('item-3', 1, { position: BigInt(0) })],
+          projections: [cartProjection],
           streamId: 'stream-3',
           database,
         });
@@ -422,8 +422,8 @@ describe('Projection State Integration', () => {
       const streamId = 'query-after-delete';
 
       await handleInlineProjections({
-        events: [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
-        projections: [cartProjection] as any,
+        events: [itemAdded('item-1', 1, { position: BigInt(0) })],
+        projections: [cartProjection],
         streamId,
         database,
       });
@@ -447,8 +447,8 @@ describe('Projection State Integration', () => {
         events: [
           itemAdded('item-1', 2, { position: BigInt(0), unitPrice: 100 }),
           itemAdded('item-2', 3, { position: BigInt(1), unitPrice: 200 }),
-        ] as any,
-        projections: [cartProjection] as any,
+        ],
+        projections: [cartProjection],
         streamId,
         database,
       });
@@ -463,8 +463,8 @@ describe('Projection State Integration', () => {
 
       // Confirm order (only changes status)
       await handleInlineProjections({
-        events: [orderConfirmed('order-1', { position: BigInt(2) })] as any,
-        projections: [cartProjection] as any,
+        events: [orderConfirmed('order-1', { position: BigInt(2) })],
+        projections: [cartProjection],
         streamId,
         database,
       });
@@ -486,8 +486,8 @@ describe('Projection State Integration', () => {
 
       // Update 1
       await handleInlineProjections({
-        events: [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
-        projections: [counterProjection] as any,
+        events: [itemAdded('item-1', 1, { position: BigInt(0) })],
+        projections: [counterProjection],
         streamId,
         database,
       });
@@ -501,8 +501,8 @@ describe('Projection State Integration', () => {
 
       // Update 2
       await handleInlineProjections({
-        events: [itemAdded('item-2', 1, { position: BigInt(1) })] as any,
-        projections: [counterProjection] as any,
+        events: [itemAdded('item-2', 1, { position: BigInt(1) })],
+        projections: [counterProjection],
         streamId,
         database,
       });
@@ -516,8 +516,8 @@ describe('Projection State Integration', () => {
 
       // Update 3
       await handleInlineProjections({
-        events: [itemRemoved('item-1', { position: BigInt(2) })] as any,
-        projections: [counterProjection] as any,
+        events: [itemRemoved('item-1', { position: BigInt(2) })],
+        projections: [counterProjection],
         streamId,
         database,
       });
@@ -535,8 +535,8 @@ describe('Projection State Integration', () => {
     it('reads projection using raw Firebase reference', async () => {
       const streamId = 'raw-read';
       await handleInlineProjections({
-        events: [itemAdded('item-1', 5, { position: BigInt(0) })] as any,
-        projections: [counterProjection] as any,
+        events: [itemAdded('item-1', 5, { position: BigInt(0) })],
+        projections: [counterProjection],
         streamId,
         database,
       });
@@ -546,7 +546,7 @@ describe('Projection State Integration', () => {
         .ref(`projections/test-counter/${streamId}`)
         .once('value');
 
-      const data = snapshot.val();
+      const data = snapshot.val() as { count: number; _metadata: unknown };
       expect(data).not.toBeNull();
       expect(data.count).toBe(1);
       expect(data._metadata).toBeDefined();
@@ -555,8 +555,8 @@ describe('Projection State Integration', () => {
     it('verifies projection path structure', async () => {
       const streamId = 'path-structure';
       await handleInlineProjections({
-        events: [itemAdded('item-1', 1, { position: BigInt(0) })] as any,
-        projections: [counterProjection, cartProjection] as any,
+        events: [itemAdded('item-1', 1, { position: BigInt(0) })],
+        projections: [counterProjection, cartProjection],
         streamId,
         database,
       });

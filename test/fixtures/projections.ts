@@ -51,7 +51,15 @@ export const cartProjection = realtimeDBInlineProjection<
   ): CartState | null => {
     switch (event.type) {
       case 'ItemAdded': {
-        const { itemId, quantity, unitPrice = 0 } = event.data as any;
+        const {
+          itemId,
+          quantity,
+          unitPrice = 0,
+        } = event.data as {
+          itemId: string;
+          quantity: number;
+          unitPrice?: number;
+        };
         const existingItem = state.items.find((i) => i.itemId === itemId);
 
         const updatedItems = existingItem
@@ -71,7 +79,10 @@ export const cartProjection = realtimeDBInlineProjection<
       }
 
       case 'ItemRemoved': {
-        const { itemId, quantity = 1 } = event.data as any;
+        const { itemId, quantity = 1 } = event.data as {
+          itemId: string;
+          quantity?: number;
+        };
         const existingItem = state.items.find((i) => i.itemId === itemId);
 
         if (!existingItem) return state;

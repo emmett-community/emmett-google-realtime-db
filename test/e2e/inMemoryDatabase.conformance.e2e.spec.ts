@@ -26,7 +26,7 @@ const observe = async (run: () => Promise<unknown>): Promise<Outcome> => {
 };
 
 const read = async (database: Database, path?: string) =>
-  (await database.ref(path).once('value')).val();
+  (await database.ref(path).once('value')).val() as unknown;
 
 const cases: Array<{ name: string; run: (db: Database) => Promise<unknown> }> =
   [
@@ -243,10 +243,10 @@ const cases: Array<{ name: string; run: (db: Database) => Promise<unknown> }> =
     },
     {
       name: 'push keys are ordered by creation',
-      run: async (db) => {
+      run: (db) => {
         const first = db.ref('list').push();
         const second = db.ref('list').push();
-        return (first.key as string) < (second.key as string);
+        return Promise.resolve(String(first.key) < String(second.key));
       },
     },
     {
@@ -281,7 +281,7 @@ const cases: Array<{ name: string; run: (db: Database) => Promise<unknown> }> =
           numChildren: snapshot.numChildren(),
           hasA: snapshot.hasChild('a'),
           hasZ: snapshot.hasChild('z'),
-          nested: snapshot.child('a/b').val(),
+          nested: snapshot.child('a/b').val() as unknown,
         };
       },
     },
@@ -316,34 +316,38 @@ const cases: Array<{ name: string; run: (db: Database) => Promise<unknown> }> =
         await db.ref('c').set({ a: 2 });
         const value = snapshot.val() as { a: number };
         value.a = 99;
-        return { snapshot: snapshot.val(), current: await read(db, 'c') };
+        return {
+          snapshot: snapshot.val() as unknown,
+          current: await read(db, 'c'),
+        };
       },
     },
     {
       name: 'get() returns the same as once()',
       run: async (db) => {
         await db.ref('g').set({ a: 1 });
-        return (await db.ref('g').get()).val();
+        return (await db.ref('g').get()).val() as unknown;
       },
     },
     {
       name: 'ref().parent, root and key',
-      run: async (db) => {
+      run: (db) => {
         const ref = db.ref('a/b/c');
-        return {
+        return Promise.resolve({
           key: ref.key,
           parent: ref.parent?.key,
           grandparent: ref.parent?.parent?.key,
           rootParent: db.ref().parent,
-        };
+        });
       },
     },
     {
       name: 'goOffline and goOnline exist',
-      run: async (db) => ({
-        goOffline: typeof db.goOffline,
-        goOnline: typeof db.goOnline,
-      }),
+      run: (db) =>
+        Promise.resolve({
+          goOffline: typeof db.goOffline,
+          goOnline: typeof db.goOnline,
+        }),
     },
   ];
 

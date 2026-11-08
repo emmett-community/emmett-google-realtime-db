@@ -1,4 +1,5 @@
-import type { EventStore } from '@event-driven-io/emmett';
+import { containing } from '../support/matchers';
+import type { EventStore, ReadEvent } from '@event-driven-io/emmett';
 import type { Database } from 'firebase-admin/database';
 import { wireRealtimeDBProjections } from '../../src/wireRealtimeDBProjections';
 import { counterProjection, cartProjection } from '../fixtures/projections';
@@ -14,7 +15,7 @@ describe('wireRealtimeDBProjections', () => {
         nextExpectedStreamVersion: BigInt(0),
         globalPosition: BigInt(100),
       }),
-    } as any;
+    } as unknown as typeof mockEventStore;
 
     mockDatabase = {
       ref: jest.fn().mockReturnValue({
@@ -22,7 +23,7 @@ describe('wireRealtimeDBProjections', () => {
         set: jest.fn().mockResolvedValue(undefined),
         remove: jest.fn().mockResolvedValue(undefined),
       }),
-    } as any;
+    } as unknown as typeof mockDatabase;
   });
 
   describe('Wrapper behavior', () => {
@@ -59,16 +60,17 @@ describe('wireRealtimeDBProjections', () => {
     it('calls original appendToStream first', async () => {
       const callOrder: string[] = [];
 
-      mockEventStore.appendToStream = jest.fn().mockImplementation(async () => {
+      mockEventStore.appendToStream = jest.fn().mockImplementation(() => {
         callOrder.push('append');
-        return { streamVersion: BigInt(1) };
+        return Promise.resolve({ streamVersion: BigInt(1) });
       });
 
       const testProjection = {
         name: 'test',
         canHandle: ['ItemAdded'],
-        handle: async () => {
+        handle: () => {
           callOrder.push('projection');
+          return Promise.resolve();
         },
       };
 
@@ -139,7 +141,7 @@ describe('wireRealtimeDBProjections', () => {
           expect.objectContaining({
             type: 'ItemAdded',
             data: { itemId: 'item-1', quantity: 1 },
-            metadata: expect.objectContaining({
+            metadata: containing({
               streamName: 'stream-1',
               streamPosition: BigInt(0),
               messageId: 'stream-1-0',
@@ -151,6 +153,121 @@ describe('wireRealtimeDBProjections', () => {
           database: mockDatabase,
         }),
       );
+    });
+  });
+
+  describe('Identity and metadata of the events', () => {
+    const captureEvents = () => {
+      const handle = jest.fn();
+      const projection = { name: 'test', canHandle: ['ItemAdded'], handle };
+      const received = () =>
+        (handle.mock.calls[0] as [ReadEvent[]])[0].map(
+          (event) => event.metadata as Record<string, unknown>,
+        );
+      return { projection, received };
+    };
+
+    const plainEvents = () => [
+      { type: 'ItemAdded', data: { itemId: 'item-1', quantity: 1 } },
+      { type: 'ItemAdded', data: { itemId: 'item-2', quantity: 1 } },
+    ];
+
+    it('gives each event the messageId stored by the event store', async () => {
+      mockEventStore.appendToStream = jest.fn().mockResolvedValue({
+        nextExpectedStreamVersion: BigInt(1),
+        messageIds: ['stored-a', 'stored-b'],
+      });
+      const { projection, received } = captureEvents();
+
+      const wired = wireRealtimeDBProjections({
+        eventStore: mockEventStore,
+        database: mockDatabase,
+        projections: [projection],
+      });
+      await wired.appendToStream('stream-1', plainEvents(), {});
+
+      expect(received().map((metadata) => metadata.messageId)).toEqual([
+        'stored-a',
+        'stored-b',
+      ]);
+    });
+
+    it('derives the messageId when the event store returns none', async () => {
+      mockEventStore.appendToStream = jest
+        .fn()
+        .mockResolvedValue({ nextExpectedStreamVersion: BigInt(1) });
+      const { projection, received } = captureEvents();
+
+      const wired = wireRealtimeDBProjections({
+        eventStore: mockEventStore,
+        database: mockDatabase,
+        projections: [projection],
+      });
+      await wired.appendToStream('stream-1', plainEvents(), {});
+
+      expect(received().map((metadata) => metadata.messageId)).toEqual([
+        'stream-1-0',
+        'stream-1-1',
+      ]);
+    });
+
+    it('derives the messageId when the ids do not match the events', async () => {
+      mockEventStore.appendToStream = jest.fn().mockResolvedValue({
+        nextExpectedStreamVersion: BigInt(1),
+        messageIds: ['only-one'],
+      });
+      const { projection, received } = captureEvents();
+
+      const wired = wireRealtimeDBProjections({
+        eventStore: mockEventStore,
+        database: mockDatabase,
+        projections: [projection],
+      });
+      await wired.appendToStream('stream-1', plainEvents(), {});
+
+      expect(received().map((metadata) => metadata.messageId)).toEqual([
+        'stream-1-0',
+        'stream-1-1',
+      ]);
+    });
+
+    it('keeps the metadata given on append, under the fields of the event store', async () => {
+      mockEventStore.appendToStream = jest.fn().mockResolvedValue({
+        nextExpectedStreamVersion: BigInt(0),
+        messageIds: ['stored-a'],
+      });
+      const { projection, received } = captureEvents();
+
+      const wired = wireRealtimeDBProjections({
+        eventStore: mockEventStore,
+        database: mockDatabase,
+        projections: [projection],
+      });
+      await wired.appendToStream(
+        'stream-1',
+        [
+          {
+            type: 'ItemAdded',
+            data: { itemId: 'item-1', quantity: 1 },
+            metadata: {
+              causationId: 'message-that-caused-it',
+              streamName: 'other-stream',
+              streamPosition: BigInt(42),
+              messageId: 'given-id',
+            },
+          },
+        ],
+        {},
+      );
+
+      expect(received()).toEqual([
+        {
+          causationId: 'message-that-caused-it',
+          streamName: 'stream-1',
+          streamPosition: BigInt(0),
+          messageId: 'stored-a',
+        },
+      ]);
     });
   });
 
@@ -195,9 +312,7 @@ describe('wireRealtimeDBProjections', () => {
       const failingProjection = {
         name: 'failing',
         canHandle: ['ItemAdded'],
-        handle: async () => {
-          throw new Error('Projection failed');
-        },
+        handle: () => Promise.reject(new Error('Projection failed')),
       };
 
       const wired = wireRealtimeDBProjections({

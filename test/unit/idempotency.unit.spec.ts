@@ -1,4 +1,7 @@
-import type { Database } from 'firebase-admin/database';
+import type { Event } from '@event-driven-io/emmett';
+import type { Database, Reference } from 'firebase-admin/database';
+import { containing } from '../support/matchers';
+import type { RealtimeDBReadModel } from '../../src/projections/types';
 import { realtimeDBInlineProjection } from '../../src/projections/realtimeDBInlineProjection';
 import { counterProjection } from '../fixtures/projections';
 import { itemAdded } from '../fixtures/events';
@@ -10,10 +13,10 @@ const handle = (
 ) => {
   const ref = { set: jest.fn(), remove: jest.fn() };
   const result = projection.handle(events, {
-    document: document as any,
+    document: document as RealtimeDBReadModel | null,
     streamId: 'stream-1',
     database: {} as Database,
-    projectionRef: ref as any,
+    projectionRef: ref as unknown as Reference,
   });
   return { ref, result };
 };
@@ -59,7 +62,7 @@ describe('Idempotent application by stream position', () => {
 
     expect(ref.set).toHaveBeenCalledWith({
       count: 7,
-      _metadata: expect.objectContaining({ streamPosition: '5' }),
+      _metadata: containing({ streamPosition: '5' }),
     });
   });
 
@@ -113,7 +116,9 @@ describe('Idempotent application by stream position', () => {
 
     const first = handle(counterProjection, events, null);
     await first.result;
-    const stored = first.ref.set.mock.calls[0]![0];
+    const stored = (first.ref.set.mock.calls as unknown[][])[0][0] as {
+      count: number;
+    };
 
     const replay = handle(counterProjection, events, stored);
     await replay.result;
@@ -127,7 +132,7 @@ describe('Dates in documents', () => {
   const openedAt = new Date('2026-10-24T12:30:00.000Z');
   const datedProjection = realtimeDBInlineProjection<
     { openedAt: Date; history: Date[] },
-    any
+    Event
   >({
     name: 'dated',
     canHandle: ['ItemAdded'],
@@ -141,13 +146,13 @@ describe('Dates in documents', () => {
       document: null,
       streamId: 'stream-1',
       database: {} as Database,
-      projectionRef: ref as any,
+      projectionRef: ref as unknown as Reference,
     });
 
     expect(ref.set).toHaveBeenCalledWith({
       openedAt: '2026-10-24T12:30:00.000Z',
       history: ['2026-10-24T12:30:00.000Z'],
-      _metadata: expect.objectContaining({ streamPosition: '0' }),
+      _metadata: containing({ streamPosition: '0' }),
     });
   });
 });

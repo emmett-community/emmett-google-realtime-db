@@ -10,7 +10,7 @@ describe('Observability - Integration Tests', () => {
   let database: Database;
   let mockEventStore: jest.Mocked<EventStore>;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     database = createInMemoryDatabase();
 
     mockEventStore = {
@@ -21,7 +21,7 @@ describe('Observability - Integration Tests', () => {
       }),
       readStream: jest.fn(),
       aggregateStream: jest.fn(),
-    } as any;
+    } as unknown as typeof mockEventStore;
   });
 
   describe('Silent by default', () => {
@@ -40,7 +40,7 @@ describe('Observability - Integration Tests', () => {
         });
 
         const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
-        await wired.appendToStream('stream-1', events as any, {});
+        await wired.appendToStream('stream-1', events, {});
 
         expect(consoleSpy).not.toHaveBeenCalled();
         expect(consoleDebugSpy).not.toHaveBeenCalled();
@@ -64,7 +64,7 @@ describe('Observability - Integration Tests', () => {
       });
 
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
-      const result = await wired.appendToStream('stream-1', events as any, {});
+      const result = await wired.appendToStream('stream-1', events, {});
 
       expect(result).toBeDefined();
       expect(result.nextExpectedStreamVersion).toBe(BigInt(2));
@@ -109,14 +109,14 @@ describe('Observability - Integration Tests', () => {
       });
 
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
-      await wired.appendToStream('stream-1', events as any, {});
+      await wired.appendToStream('stream-1', events, {});
 
       // Should have logged multiple debug messages
       expect(debugFn.mock.calls.length).toBeGreaterThan(0);
 
       // Verify canonical format: (context, message)
       // First arg is context object, second is message string
-      const appendingCall = debugFn.mock.calls.find(
+      const appendingCall = (debugFn.mock.calls as [unknown, string][]).find(
         (call) => call[1] === 'Appending to stream',
       );
       expect(appendingCall).toBeDefined();
@@ -147,7 +147,7 @@ describe('Observability - Integration Tests', () => {
       });
 
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
-      await wired.appendToStream('stream-1', events as any, {});
+      await wired.appendToStream('stream-1', events, {});
 
       expect(infoFn).toHaveBeenCalled();
       expect(debugFn).toHaveBeenCalled();
@@ -178,7 +178,7 @@ describe('Observability - Integration Tests', () => {
       const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
       await expect(
-        wired.appendToStream('stream-1', events as any, {}),
+        wired.appendToStream('stream-1', events, {}),
       ).rejects.toThrow('Append failed');
 
       // Canonical format: ({ err: Error }, message)
@@ -201,7 +201,7 @@ describe('Observability - Integration Tests', () => {
       const events1 = [itemAdded('item-1', 1, { position: BigInt(0) })];
       const result1 = await wiredWithout.appendToStream(
         'stream-1',
-        events1 as any,
+        events1,
         {},
       );
 
@@ -228,11 +228,7 @@ describe('Observability - Integration Tests', () => {
       });
 
       const events2 = [itemAdded('item-1', 1, { position: BigInt(0) })];
-      const result2 = await wiredWith.appendToStream(
-        'stream-2',
-        events2 as any,
-        {},
-      );
+      const result2 = await wiredWith.appendToStream('stream-2', events2, {});
 
       // Results should be equivalent
       expect(result1.nextExpectedStreamVersion).toBe(
