@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-11-07
+
+### Changed
+
+- `wireRealtimeDBProjections` hands the projections the identity the event store gave each event: when the append result has `messageIds` with one id per event, each event gets its stored `messageId`. Without them the derived `<streamName>-<streamPosition>` stays, as before.
+- The metadata given on append (for example a `causationId`) now reaches the projections, under the `streamName`, `streamPosition` and `messageId` set by the wiring. It used to be replaced by those three fields.
+- Linting runs again: the ESLint configuration moved to the flat format of ESLint 9 (`eslint.config.mjs`, with `tsconfig.eslint.json` so the tests are type checked), with the same rules. Sources and tests are formatted with Prettier, and the tests no longer use `any`: mocks are typed, snapshot values are read as `unknown` or a declared shape, and `test/support/matchers.ts` types the nested `expect.objectContaining`. No change of behavior.
+
 ## [0.8.0] - 2026-10-24
 
 ### Added

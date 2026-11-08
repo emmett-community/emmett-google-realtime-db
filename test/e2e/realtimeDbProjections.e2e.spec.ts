@@ -100,8 +100,8 @@ describe('Realtime DB projections e2e', () => {
     const events = [itemAdded('item-1', 1, { position: BigInt(0) })];
 
     await handleInlineProjections({
-      events: events as any,
-      projections: [counterProjection] as any,
+      events: events,
+      projections: [counterProjection],
       streamId,
       database: database as Database,
     });
@@ -125,7 +125,7 @@ describe('Realtime DB projections e2e', () => {
       }),
       readStream: jest.fn(),
       aggregateStream: jest.fn(),
-    } as any;
+    };
 
     const wired = wireRealtimeDBProjections({
       eventStore: mockEventStore,
@@ -138,7 +138,7 @@ describe('Realtime DB projections e2e', () => {
         type: 'ItemAdded',
         data: { itemId: 'item-1', quantity: 1 },
       },
-    ] as any);
+    ]);
 
     const state = await getProjectionState<PersistedCounterState>(
       database as Database,

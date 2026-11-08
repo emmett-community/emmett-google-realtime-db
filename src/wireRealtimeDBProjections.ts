@@ -67,18 +67,34 @@ export const wireRealtimeDBProjections = <T extends EventStore>(
               ? versionValue
               : BigInt(versionValue as number);
 
+          // An event store that returns the stored ids gives one per event, in order; the
+          // projection must see that same identity
+          const { messageIds } = result as { messageIds?: unknown };
+          const storedIds =
+            Array.isArray(messageIds) && messageIds.length === events.length
+              ? messageIds
+              : undefined;
+
           const readEvents = events.map((event, index) => {
             // nextExpectedStreamVersion is the version of the LAST event in the batch
             // For a batch of N events, the first event has position: nextExpectedStreamVersion - N + 1
             // Each subsequent event: (nextExpectedStreamVersion - N + 1) + index
             const position =
               nextVersion - eventsLength + BigInt(1) + BigInt(index);
+            const storedId: unknown = storedIds?.[index];
+            const appendMetadata = (
+              event as { metadata?: Record<string, unknown> }
+            ).metadata;
             return {
               ...event,
               metadata: {
+                ...appendMetadata,
                 streamName,
                 streamPosition: position,
-                messageId: `${streamName}-${position}`,
+                messageId:
+                  typeof storedId === 'string'
+                    ? storedId
+                    : `${streamName}-${position}`,
               },
             };
           }) as ReadEvent[];
