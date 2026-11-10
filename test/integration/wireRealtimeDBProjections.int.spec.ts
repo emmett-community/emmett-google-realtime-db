@@ -30,7 +30,7 @@ describe('Wire Realtime DB Projections Integration', () => {
 
     mockEventStore = {
       appendToStream: appendToStreamMock,
-      readStream: jest.fn(),
+      readStream: jest.fn().mockResolvedValue({ events: [] }),
       aggregateStream: jest.fn(),
     } as unknown as typeof mockEventStore;
   });
@@ -638,7 +638,7 @@ describe('Wire Realtime DB Projections Integration', () => {
 
       const customMockEventStore = {
         appendToStream: incrementingMock,
-        readStream: jest.fn(),
+        readStream: jest.fn().mockResolvedValue({ events: [] }),
         aggregateStream: jest.fn(),
       };
 

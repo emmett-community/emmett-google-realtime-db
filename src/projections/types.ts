@@ -26,11 +26,33 @@ export type RealtimeDBReadModel = {
   [key: string]: unknown;
 };
 
+/**
+ * The stored events whose position is after `after` (or from the start of the stream when it is
+ * `null`) and before `before`. A reader may return more events than that; the projection keeps
+ * only the ones in the range.
+ */
+export type StoredEventsRange = {
+  after: bigint | null;
+  before: bigint;
+};
+
+export type StoredEventsReader = (
+  range: StoredEventsRange,
+) => Promise<Array<ReadEvent<Event, RealtimeDBReadEventMetadata>>>;
+
 export type RealtimeDBProjectionInlineHandlerContext = {
   document: RealtimeDBReadModel | null;
   streamId: string;
   database: Database;
   projectionRef: Reference;
+  /**
+   * Reads the stored events of the stream. Given by `wireRealtimeDBProjections`, so a projection
+   * whose document is behind the events it receives reads the ones it missed instead of skipping
+   * them.
+   */
+  readStoredEvents?: StoredEventsReader;
+  /** `true` when the events received are the first ones of the stream. */
+  streamIsNew?: boolean;
 };
 
 export type RealtimeDBInlineProjectionHandler<
@@ -66,6 +88,10 @@ export type InlineProjectionHandlerOptions<
   streamId: string;
   database: Database;
   observability?: ObservabilityOptions;
+  /** See `RealtimeDBProjectionInlineHandlerContext.readStoredEvents`. */
+  readStoredEvents?: StoredEventsReader;
+  /** See `RealtimeDBProjectionInlineHandlerContext.streamIsNew`. */
+  streamIsNew?: boolean;
 };
 
 export type RealtimeDBWithNotNullDocumentEvolve<

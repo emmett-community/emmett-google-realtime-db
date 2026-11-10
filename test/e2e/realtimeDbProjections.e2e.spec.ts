@@ -123,7 +123,7 @@ describe('Realtime DB projections e2e', () => {
         nextExpectedStreamVersion: BigInt(0),
         createdNewStream: true,
       }),
-      readStream: jest.fn(),
+      readStream: jest.fn().mockResolvedValue({ events: [] }),
       aggregateStream: jest.fn(),
     };
 

@@ -11,6 +11,8 @@ Google Realtime Database inline projections for [Emmett](https://event-driven-io
 - ✅ **Type-Safe** - Full TypeScript support with projection metadata
 - ✅ **Real-time Read Models** - Queryable views stored in Firebase RTDB
 - ✅ **Idempotent** - Events already applied (by stream position) are skipped, so a replay does not change the read model
+- ✅ **No permanent gaps** - A projection left behind by a stopped process applies the events it missed with the next append of the stream
+- ✅ **Catch-up** - `projectStream` rebuilds the read models of a stream from its stored events when they were left behind
 - ✅ **Testing Utilities** - Helpers for projection validation and an in-memory Realtime Database for service tests
 - ✅ **Simple Integration** - Wire projections with a single function call
 
@@ -101,6 +103,14 @@ Every document stores the stream position of the last event it applied in `_meta
 - A document without `_metadata.streamPosition` (written by an older version) applies every event.
 
 This assumes that events of a stream arrive in position order. A projection that deleted its document (its `evolve` returned `null`) has no stored position, so a replay of the older events would apply them again; make `evolve` ignore events for a missing document when that matters (the shopping cart example does this).
+
+### Events Missed by a Projection
+
+The document is written after the append commits, so a process that stops in between leaves it behind the stream: the event is stored, the document is not updated. Applying only the events of the next append would then skip the missed ones for good, since the stored position would move past them.
+
+`wireRealtimeDBProjections` prevents that. When the events of an append start after a gap in the stored position of a document, or the document is missing while the append result says the stream already existed (`createdNewStream: false`), the projection reads the stored events it missed, only the range between the stored position and the first new event, and applies them before the new ones. When nothing was missed it does not read the stream. Until the next append of that stream, the document stays behind; `projectStream` brings it up to date at any time.
+
+A projection is called only for the appends that contain an event type it handles, so its stored position does not move with appends of other types. A projection that handles only some of the event types of a stream therefore also reads the range after such appends, and then ignores those events. The read covers only that range, but it is one more read on the next append of a type it handles.
 
 ### Event Metadata Seen by a Projection
 
@@ -213,6 +223,38 @@ const eventStore = wireRealtimeDBProjections({
   database: admin.database(),
   projections: [projection1, projection2],
 });
+```
+
+### `projectStream`
+
+Brings the read models of one stream up to date from its stored events.
+
+The inline projections are written after the append commits, in a separate store, so a process that stops in between leaves the read models of that stream behind. `projectStream` reads the stream and applies its events to the projections. Each projection skips the events at or before the stream position it already stored, so calling it on a stream whose read models are up to date changes nothing, and the events appended afterwards are applied on top of the rebuilt document.
+
+```typescript
+function projectStream(options: ProjectStreamOptions): Promise<void>;
+```
+
+**Options:**
+
+- `eventStore`: Your Emmett event store. Its stored events must carry the same stream positions its append results report through `nextExpectedStreamVersion`, which is what `wireRealtimeDBProjections` uses
+- `database`: Firebase Realtime Database instance
+- `projections`: Array of projection definitions
+- `streamName`: The stream to project
+- `observability`: Optional logger, as in `wireRealtimeDBProjections`
+
+**Example:** rebuild a read model that a request expected and did not find:
+
+```typescript
+const details = await getDetails(database, orderId);
+if (!details) {
+  await projectStream({
+    eventStore,
+    database,
+    projections: [orderDetailsProjection],
+    streamName: orderId,
+  });
+}
 ```
 
 ## Examples
@@ -398,7 +440,7 @@ This package emits OpenTelemetry spans at I/O boundaries. Tracing is passive:
 - If not initialized, spans are no-ops with zero overhead
 - No configuration flags required
 
-Span names follow the `emmett.realtime_db.*` pattern.
+Span names follow the `emmett.realtime_db.*` pattern. `emmett.realtime_db.projection.handle`, one per projection, is a child of `emmett.realtime_db.handle_projections` and is active while the projection reads its document, reads the events it missed from the event store and writes, so the spans of the event store read are its children.
 
 ## Architecture
 

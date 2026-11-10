@@ -1,5 +1,5 @@
 import type { Event, ReadEvent } from '@event-driven-io/emmett';
-import { trace, SpanStatusCode } from '@opentelemetry/api';
+import { context, trace, SpanStatusCode, type Span } from '@opentelemetry/api';
 import type {
   InlineProjectionHandlerOptions,
   RealtimeDBDefaultInlineProjectionName,
@@ -8,6 +8,7 @@ import type {
   RealtimeDBReadEventMetadata,
   RealtimeDBReadModel,
   RealtimeDBReadModelMetadata,
+  StoredEventsReader,
 } from './types';
 import { safeLog, type Logger } from '../observability';
 import { toRealtimeDBValue } from './serializeValues';
@@ -16,6 +17,11 @@ export { RealtimeDBDefaultInlineProjectionName } from './types';
 
 // Tracer name MUST match package.json name exactly
 const tracer = trace.getTracer('@emmett-community/emmett-google-realtime-db');
+
+// Runs a call with the span active, so the spans it creates (a read of the event store, for
+// example) are children of the span
+const withinSpan = <T>(span: Span, call: () => T | Promise<T>): Promise<T> =>
+  Promise.resolve(context.with(trace.setSpan(context.active(), span), call));
 
 const READ_TIMEOUTS_MS = [5000, 8000, 12000];
 
@@ -117,6 +123,8 @@ export const handleInlineProjections = async <
     streamId,
     database,
     observability,
+    readStoredEvents,
+    streamIsNew,
   } = options;
   const logger = observability?.logger;
 
@@ -147,12 +155,11 @@ export const handleInlineProjections = async <
     span.setAttribute('emmett.projection_count', projections.length);
 
     for (const projection of projections) {
-      await handleSingleProjection(
-        projection,
-        events,
-        streamId,
-        database,
-        logger,
+      await withinSpan(span, () =>
+        handleSingleProjection(projection, events, streamId, database, logger, {
+          readStoredEvents,
+          streamIsNew,
+        }),
       );
     }
 
@@ -187,6 +194,7 @@ const handleSingleProjection = async <
   streamId: string,
   database: import('firebase-admin/database').Database,
   logger: Logger | undefined,
+  stream: { readStoredEvents?: StoredEventsReader; streamIsNew?: boolean },
 ): Promise<void> => {
   const span = tracer.startSpan('emmett.realtime_db.projection.handle', {
     attributes: {
@@ -204,12 +212,14 @@ const handleSingleProjection = async <
     const projectionRef = database.ref(
       `projections/${projection.name}/${streamId}`,
     );
-    const snapshot = await readSnapshotWithRetry(
-      projectionRef,
-      database,
-      logger,
-      projection.name,
-      streamId,
+    const snapshot = await withinSpan(span, () =>
+      readSnapshotWithRetry(
+        projectionRef,
+        database,
+        logger,
+        projection.name,
+        streamId,
+      ),
     );
     const document = (snapshot.val() as RealtimeDBReadModel | null) ?? null;
 
@@ -218,12 +228,16 @@ const handleSingleProjection = async <
       documentFound: document !== null,
     });
 
-    await projection.handle(events, {
-      document,
-      streamId,
-      database,
-      projectionRef,
-    });
+    await withinSpan(span, () =>
+      projection.handle(events, {
+        document,
+        streamId,
+        database,
+        projectionRef,
+        readStoredEvents: stream.readStoredEvents,
+        streamIsNew: stream.streamIsNew,
+      }),
+    );
 
     span.setStatus({ code: SpanStatusCode.OK });
   } catch (error) {
@@ -236,6 +250,47 @@ const handleSingleProjection = async <
   } finally {
     span.end();
   }
+};
+
+/**
+ * The document is written after the append commits, so a process that stops in between leaves it
+ * behind the stream. The next events then start after a gap, and applying only them would skip the
+ * missed ones for good, since the stored position would move past them. When the document is behind
+ * the first event received (or missing for a stream that is not new), the stored events in between
+ * are read and applied first.
+ */
+const withMissedEvents = async <
+  EventType extends Event,
+  EventMetaDataType extends RealtimeDBReadEventMetadata,
+>(
+  received: Array<ReadEvent<EventType, EventMetaDataType>>,
+  storedPosition: bigint | null,
+  readStoredEvents: StoredEventsReader | undefined,
+  streamIsNew: boolean | undefined,
+): Promise<Array<ReadEvent<EventType, EventMetaDataType>>> => {
+  if (!readStoredEvents) return received;
+
+  const firstPosition = BigInt(received[0].metadata.streamPosition);
+  // A missing document is behind only when the event store says the stream already existed
+  const behind =
+    storedPosition === null
+      ? streamIsNew === false
+      : firstPosition > storedPosition + BigInt(1);
+  if (!behind) return received;
+
+  const stored = await readStoredEvents({
+    after: storedPosition,
+    before: firstPosition,
+  });
+  const missed = stored.filter((event) => {
+    const position = BigInt(event.metadata.streamPosition);
+    return (
+      position < firstPosition &&
+      (storedPosition === null || position > storedPosition)
+    );
+  }) as unknown as Array<ReadEvent<EventType, EventMetaDataType>>;
+
+  return [...missed, ...received];
 };
 
 // The stream position is stored as a string; accept a bigint or a number too.
@@ -270,12 +325,22 @@ export const realtimeDBInlineProjection = <
   return {
     name: projectionName,
     canHandle: options.canHandle,
-    handle: async (events, { document, projectionRef, streamId }) => {
-      if (events.length === 0) return;
+    handle: async (
+      received,
+      { document, projectionRef, streamId, readStoredEvents, streamIsNew },
+    ) => {
+      if (received.length === 0) return;
+
+      const storedPosition = readStoredStreamPosition(document);
+      const events = await withMissedEvents(
+        received,
+        storedPosition,
+        readStoredEvents,
+        streamIsNew,
+      );
 
       // Idempotency: events at or before the stored stream position were
       // already applied (redelivery, retry after a failed append response).
-      const storedPosition = readStoredStreamPosition(document);
       const pendingEvents =
         storedPosition === null
           ? events

@@ -1,6 +1,6 @@
 {
   "name": "@emmett-community/emmett-google-realtime-db",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Google Realtime Database inline projections for Emmett",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -79,6 +79,8 @@
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "@event-driven-io/emmett": "^0.39.1",
+    "@opentelemetry/context-async-hooks": "^1.30.1",
+    "@opentelemetry/sdk-trace-base": "^1.30.1",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.1",
     "@typescript-eslint/eslint-plugin": "^8.17.0",

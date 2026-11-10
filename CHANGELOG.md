@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-11-09
+
+### Added
+
+- `projectStream({ eventStore, database, projections, streamName })`: brings the read models of one stream up to date by applying its stored events to the projections. The inline projections are written after the append commits, so a process that stops in between leaves them behind; each projection skips the events it already applied, so calling it on an up-to-date stream changes nothing. Integration tests with Emmett's in-memory event store cover a lost read model, an up-to-date one, events appended after the rebuild, and a stream that does not exist.
+
+### Changed
+
+- `build_and_test` runs `lint` and `format:check`, and runs on every pull request: one that changes only documentation skips the build and the tests but still reports the check, instead of leaving it pending.
+- The mocked event stores of the tests answer `readStream` with an empty stream, as a real event store does.
+- The spans `emmett.realtime_db.handle_projections` and `emmett.realtime_db.projection.handle` are active while the projections run, so the projection spans are children of the first, and the read of missed events from the event store is traced under the projection. A unit test with an OpenTelemetry SDK registered covers it (`@opentelemetry/sdk-trace-base` and `@opentelemetry/context-async-hooks` as development dependencies).
+
+### Fixed
+
+- A projection left behind by a process that stopped between the commit and the projection no longer skips the missed events for good. When the events of an append start after a gap in the stored position of a document, or the document is missing while the append result says the stream already existed (`createdNewStream: false`), `wireRealtimeDBProjections` reads the stored events of that range only (between the stored position and the first new event) and the projection applies the missed ones before the new ones. When nothing was missed the stream is not read. The projection context gains the optional `readStoredEvents(range)` and `streamIsNew`, which `handleInlineProjections` passes through. Integration tests cover an event missed in the middle, the first events of a stream, several missed appends, a long stream where only the missed part is read, and an append that misses nothing.
+
 ## [0.9.0] - 2026-11-07
 
 ### Changed
