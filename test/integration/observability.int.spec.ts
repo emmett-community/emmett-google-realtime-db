@@ -19,7 +19,7 @@ describe('Observability - Integration Tests', () => {
         nextExpectedStreamVersion: BigInt(2),
         createdNewStream: false,
       }),
-      readStream: jest.fn(),
+      readStream: jest.fn().mockResolvedValue({ events: [] }),
       aggregateStream: jest.fn(),
     } as unknown as typeof mockEventStore;
   });

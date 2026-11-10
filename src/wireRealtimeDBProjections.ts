@@ -1,9 +1,16 @@
-import type { EventStore, ReadEvent } from '@event-driven-io/emmett';
+import type {
+  Event,
+  EventStore,
+  ReadEvent,
+  ReadStreamOptions,
+} from '@event-driven-io/emmett';
 import type { Database } from 'firebase-admin/database';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 import {
   handleInlineProjections,
   type RealtimeDBInlineProjectionDefinition,
+  type RealtimeDBReadEventMetadata,
+  type StoredEventsRange,
 } from './projections';
 import { safeLog, type ObservabilityOptions } from './observability';
 
@@ -18,6 +25,17 @@ export type WireRealtimeDBProjectionsOptions<
   projections: RealtimeDBInlineProjectionDefinition[];
   observability?: ObservabilityOptions;
 };
+
+/**
+ * Read options covering the positions in `range`. Event stores do not agree on what `from` and `to`
+ * mean: some take them as stream positions starting at 0, others as indexes of events whose
+ * positions start at 1. The options asked here cover the range either way, at most one event
+ * wider; the projection keeps only the events in the range.
+ */
+const readRangeOptions = (range: StoredEventsRange): ReadStreamOptions =>
+  range.after === null
+    ? { to: range.before - BigInt(1) }
+    : { from: range.after, maxCount: range.before - range.after };
 
 export const wireRealtimeDBProjections = <T extends EventStore>(
   options: WireRealtimeDBProjectionsOptions<T>,
@@ -99,12 +117,24 @@ export const wireRealtimeDBProjections = <T extends EventStore>(
             };
           }) as ReadEvent[];
 
+          const { createdNewStream } = result as {
+            createdNewStream?: boolean;
+          };
+
           await handleInlineProjections({
             events: readEvents,
             projections,
             streamId: streamName,
             database,
             observability,
+            // A projection left behind by an earlier append reads the events it missed
+            readStoredEvents: async (range) =>
+              (await eventStore.readStream(streamName, readRangeOptions(range)))
+                .events as unknown as ReadEvent<
+                Event,
+                RealtimeDBReadEventMetadata
+              >[],
+            streamIsNew: createdNewStream,
           });
 
           span.setAttribute('emmett.new_version', Number(nextVersion));

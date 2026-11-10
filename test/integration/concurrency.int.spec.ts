@@ -20,7 +20,7 @@ describe('High Volume Operations Integration', () => {
 
     mockEventStore = {
       appendToStream: createVersionedAppendMock(),
-      readStream: jest.fn(),
+      readStream: jest.fn().mockResolvedValue({ events: [] }),
       aggregateStream: jest.fn(),
     } as unknown as typeof mockEventStore;
   });
